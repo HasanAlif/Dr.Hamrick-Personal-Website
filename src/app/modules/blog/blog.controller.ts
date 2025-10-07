@@ -54,6 +54,35 @@ const getBlogList = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getWebsiteBlogList = catchAsync(async (req: Request, res: Response) => {
+  const { searchTerm, status, page, limit, sortBy, sortOrder } = req.query;
+
+  const filters = {
+    searchTerm: searchTerm as string,
+    status: status !== undefined ? status === "true" : undefined,
+  };
+
+  const paginationOptions = {
+    page: page ? Number(page) : undefined,
+    limit: limit ? Number(limit) : undefined,
+    sortBy: sortBy as string,
+    sortOrder: sortOrder as string,
+  };
+
+  const result = await blogService.getWebsiteBlogList(
+    filters,
+    paginationOptions
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Blog list retrieved successfully",
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
 const getBlogById = catchAsync(async (req, res) => {
   const result = await blogService.getByIdFromDb(req.params.id);
   sendResponse(res, {
@@ -108,6 +137,7 @@ const deleteBlog = catchAsync(async (req, res) => {
 export const blogController = {
   createBlog,
   getBlogList,
+  getWebsiteBlogList,
   getBlogById,
   updateBlog,
   deleteBlog,

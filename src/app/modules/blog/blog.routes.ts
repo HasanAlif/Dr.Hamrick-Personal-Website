@@ -26,6 +26,8 @@ router.put(
 
 router.get("/", blogController.getBlogList);
 
+router.get("/website-blogs", blogController.getWebsiteBlogList);
+
 router.get("/:id", blogController.getBlogById);
 
 router.delete("/delete/:id", auth(UserRole.ADMIN), blogController.deleteBlog);

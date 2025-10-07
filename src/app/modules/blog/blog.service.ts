@@ -83,6 +83,57 @@ const getListFromDb = async (
   };
 };
 
+const getWebsiteBlogList = async (
+  filters: { searchTerm?: string; status?: boolean } = {},
+  paginationOptions: IPaginationOptions = {}
+) => {
+  const { searchTerm, ...filterData } = filters;
+  const { page, limit, skip, sortBy, sortOrder } =
+    paginationHelper.calculatePagination(paginationOptions);
+
+  const andConditions = [];
+
+  if (searchTerm) {
+    andConditions.push({
+      $or: [
+        { title: { $regex: searchTerm, $options: "i" } },
+        { description: { $regex: searchTerm, $options: "i" } },
+      ],
+    });
+  }
+
+  if (filterData.status !== undefined) {
+    andConditions.push({ status: filterData.status });
+  }
+
+  const whereConditions =
+    andConditions.length > 0 ? { $and: andConditions } : {};
+
+  const sortConditions: { [key: string]: 1 | -1 } = {};
+  if (sortBy && sortOrder) {
+    sortConditions[sortBy] = sortOrder === "asc" ? 1 : -1;
+  } else {
+    sortConditions.createdAt = -1;
+  }
+
+  const result = await Blog.find({ ...whereConditions, status: true })
+    .sort(sortConditions)
+    .skip(skip)
+    .limit(limit);
+
+  const total = await Blog.countDocuments({ ...whereConditions, status: true });
+
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+    data: result,
+  };
+};
+
 const getByIdFromDb = async (id: string) => {
   const result = await Blog.findById(id);
   if (!result) {
@@ -161,6 +212,7 @@ const deleteItemFromDb = async (id: string) => {
 export const blogService = {
   createIntoDb,
   getListFromDb,
+  getWebsiteBlogList,
   getByIdFromDb,
   updateIntoDb,
   deleteItemFromDb,
