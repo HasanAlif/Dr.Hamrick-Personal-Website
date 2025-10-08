@@ -24,6 +24,11 @@ router.post(
 
 router.get("/", publicationsController.getPublicationsList);
 
+router.get(
+  "/website-publications",
+  publicationsController.getWebsitePublicationsList
+);
+
 router.get("/:id", publicationsController.getPublicationsById);
 
 router.put(
