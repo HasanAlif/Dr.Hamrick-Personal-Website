@@ -5,6 +5,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import GlobalErrorHandler from "./app/middlewares/globalErrorHandler";
 import router from "./app/routes";
+import { LANDING_PAGE_TEMPLATE } from "./utils/Template";
 
 const app: Application = express();
 export const corsOptions = {
@@ -24,11 +25,7 @@ app.use("/uploads", express.static("uploads")); // Serve uploaded files
 
 // Route handler for root endpoint
 app.get("/", (req: Request, res: Response) => {
-  res.send({
-    success: true,
-    statusCode: httpStatus.OK,
-    message: "The server is running!",
-  });
+  res.send(LANDING_PAGE_TEMPLATE);
 });
 
 // Router setup
