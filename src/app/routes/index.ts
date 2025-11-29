@@ -6,6 +6,7 @@ import { publicationsRoutes } from "../modules/publications/publications.routes"
 import { videosRoutes } from "../modules/videos/videos.routes";
 import { podcastRoutes } from "../modules/podcast/podcast.routes";
 import { SearchRoutes } from "../modules/search/search.routes";
+import { lifeSuggestionRoutes } from "../modules/lifeSuggestion/lifeSuggestion.routes";
 
 const router = express.Router();
 
@@ -37,6 +38,10 @@ const moduleRoutes = [
   {
     path: "/search",
     route: SearchRoutes,
+  },
+  {
+    path: "/life-suggestions",
+    route: lifeSuggestionRoutes,
   },
 ];
 
