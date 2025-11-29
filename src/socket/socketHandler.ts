@@ -5,6 +5,12 @@ import Podcast, {
 } from "../app/modules/podcast/podcast.model";
 import audioStreamService from "../app/modules/podcast/audioStreamService";
 
+// Cache for stream headers to support late joiners
+const activeStreams = new Map<
+  string,
+  { header: string; mimeType: string; sessionId: string }
+>();
+
 export function initializeSocketHandlers(io: SocketIOServer): void {
   const podcastNamespace = io.of("/podcast");
 
@@ -19,15 +25,33 @@ export function initializeSocketHandlers(io: SocketIOServer): void {
         audioChunk: string;
         podcastId: string;
         mimeType?: string;
+        isHeader?: boolean;
       }) => {
         try {
-          const { sessionId, audioChunk, podcastId, mimeType } = data;
+          const { sessionId, audioChunk, podcastId, mimeType, isHeader } = data;
 
           console.log(
             `[BROADCAST] Received audio chunk: ${
               audioChunk?.length || 0
-            } chars for podcast ${podcastId}`
+            } chars for podcast ${podcastId} ${isHeader ? "(HEADER)" : ""}`
           );
+
+          // Cache the first chunk (header) for new listeners
+          // Update cache if it's explicitly marked as a header, OR if we don't have a header for this session yet
+          if (
+            isHeader ||
+            !activeStreams.has(podcastId) ||
+            activeStreams.get(podcastId)?.sessionId !== sessionId
+          ) {
+            activeStreams.set(podcastId, {
+              header: audioChunk,
+              mimeType: mimeType || "audio/webm",
+              sessionId,
+            });
+            console.log(
+              `[BROADCAST] Cached header for podcast ${podcastId} (Session: ${sessionId})`
+            );
+          }
 
           // Verify podcast is live
           const podcast = await Podcast.findById(podcastId);
@@ -87,6 +111,17 @@ export function initializeSocketHandlers(io: SocketIOServer): void {
 
           // Join room
           socket.join(podcastId);
+
+          // Send cached header if available
+          if (activeStreams.has(podcastId)) {
+            const streamData = activeStreams.get(podcastId);
+            socket.emit("audio-stream", {
+              audioChunk: streamData?.header,
+              mimeType: streamData?.mimeType,
+              timestamp: Date.now(),
+            });
+            console.log(`[JOIN] Sent cached header to listener ${socket.id}`);
+          }
 
           // Add listener
           podcast.podcastListeners.push({

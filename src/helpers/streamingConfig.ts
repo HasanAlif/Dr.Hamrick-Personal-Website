@@ -1,9 +1,6 @@
 import config from "../config";
 
-/**
- * Generate streaming configuration for a podcast
- * This provides AWS IVS-like structure adapted for Socket.IO + Google Cloud Storage
- */
+// Generate streaming configuration for a podcast This provides AWS IVS-like structure adapted for Socket.IO + Google Cloud Storage
 export interface StreamConfig {
   channelId: string;
   sessionId: string | null;
@@ -15,9 +12,7 @@ export interface StreamConfig {
   roomId: string;
 }
 
-/**
- * Get base Socket.IO endpoint URL
- */
+// Get base Socket.IO endpoint URL
 function getSocketEndpoint(): string {
   // Replace http/https with ws/wss for WebSocket
   const serverUrl = config.serverUrl
@@ -26,9 +21,7 @@ function getSocketEndpoint(): string {
   return `${serverUrl}/socket.io`;
 }
 
-/**
- * Generate streaming configuration for scheduled/idle podcast
- */
+// Generate streaming configuration for scheduled/idle podcast
 export function generateStreamConfig(podcastId: string): StreamConfig {
   return {
     channelId: `podcast_${podcastId}`,
@@ -42,10 +35,8 @@ export function generateStreamConfig(podcastId: string): StreamConfig {
   };
 }
 
-/**
- * Generate streaming configuration for live podcast with active session
- * Includes both Socket.IO and RTMP endpoints for OBS support
- */
+// Generate streaming configuration for live podcast with active session
+// Includes both Socket.IO and RTMP endpoints for OBS support
 export function generateLiveStreamConfig(
   podcastId: string,
   sessionId: string
@@ -76,9 +67,7 @@ export function generateLiveStreamConfig(
   };
 }
 
-/**
- * Generate streaming configuration for ended podcast with recording
- */
+// Generate streaming configuration for ended podcast with recording
 export function generateRecordedStreamConfig(
   podcastId: string,
   sessionId: string,
@@ -96,9 +85,7 @@ export function generateRecordedStreamConfig(
   };
 }
 
-/**
- * Get stream health status
- */
+// Get stream health status
 export function getStreamHealth(
   actualStart: Date | undefined,
   currentListeners: number,
