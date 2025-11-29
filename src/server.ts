@@ -6,7 +6,6 @@ import app from "./app";
 import { testConnection } from "./helpers/googleCloudStorage";
 import { corsOptions } from "./app";
 import { initializeSocketHandlers } from "./socket/socketHandler";
-import { initializeRTMPServer } from "./socket/rtmpServer";
 import { startSignedUrlRefreshJob } from "./jobs/refreshSignedUrls";
 
 let server: Server;
@@ -40,19 +39,6 @@ async function startServer() {
 
   // Initialize podcast Socket.IO handlers
   initializeSocketHandlers(io);
-
-  console.log("✓ Socket.IO initialized for audio podcasting");
-
-  // Initialize RTMP server for OBS streaming
-  try {
-    const rtmpServer = initializeRTMPServer(io);
-    rtmpServer.run();
-    console.log(`✓ RTMP Server started on port ${config.rtmp.port}`);
-    console.log(`✓ HLS Playback available on port ${config.rtmp.httpPort}`);
-  } catch (error) {
-    console.error("✗ RTMP Server failed to start:", error);
-    console.log("  Podcast streaming will work via Socket.IO only");
-  }
 
   // Initialize signed URL refresh cron job
   startSignedUrlRefreshJob();

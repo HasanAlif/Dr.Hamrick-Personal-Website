@@ -9,7 +9,7 @@ import {
   generateLiveStreamConfig,
   generateRecordedStreamConfig,
 } from "../../../helpers/streamingConfig";
-import ivsCompatService from "../../services/ivsCompatService";
+import { v4 as uuidv4 } from "uuid";
 
 interface AuthRequest extends Request {
   user: any;
@@ -29,9 +29,6 @@ export const createPodcast = catchAsync(
       coverImagePath = uploadResult.Location;
     }
 
-    // Generate AWS IVS-compatible channel data
-    const ivsChannel = await ivsCompatService.getOrCreateChannel(title);
-
     const podcast = await Podcast.create({
       title,
       coverImage: coverImagePath,
@@ -40,10 +37,6 @@ export const createPodcast = catchAsync(
       date: req.body.date ? new Date(req.body.date) : undefined,
       admin: req.user.id,
       status: PodcastStatus.SCHEDULED,
-      ivsChannelArn: ivsChannel.arn,
-      ivsPlaybackUrl: ivsChannel.playbackUrl,
-      ivsStreamKey: ivsChannel.streamKey,
-      ivsIngestEndpoint: ivsChannel.ingestEndpoint,
     });
 
     const populatedPodcast = await Podcast.findById(podcast._id).populate(
@@ -100,7 +93,7 @@ export const getAllPodcasts = catchAsync(
     const podcasts = await query;
     const total = await Podcast.countDocuments(filter);
 
-    // Add streamConfig to each podcast (IVS fields already included via toObject)
+    // Add streamConfig to each podcast
     const podcastsWithConfig = podcasts.map((podcast) => {
       const podcastObj = podcast.toObject();
       const streamConfig =
@@ -117,14 +110,9 @@ export const getAllPodcasts = catchAsync(
             )
           : generateStreamConfig((podcast._id as any).toString());
 
-      // Ensure IVS fields are at root level
       return {
         ...podcastObj,
         streamConfig,
-        ivsChannelArn: podcastObj.ivsChannelArn,
-        ivsPlaybackUrl: podcastObj.ivsPlaybackUrl,
-        ivsStreamKey: podcastObj.ivsStreamKey,
-        ivsIngestEndpoint: podcastObj.ivsIngestEndpoint,
       };
     });
 
@@ -196,11 +184,6 @@ export const getPodcast = catchAsync(
         podcast: {
           ...podcastObj,
           streamConfig,
-          // Ensure IVS fields are explicitly at root level
-          ivsChannelArn: podcastObj.ivsChannelArn,
-          ivsPlaybackUrl: podcastObj.ivsPlaybackUrl,
-          ivsStreamKey: podcastObj.ivsStreamKey,
-          ivsIngestEndpoint: podcastObj.ivsIngestEndpoint,
         },
       },
     });
@@ -331,20 +314,8 @@ export const startPodcast = catchAsync(
       );
     }
 
-    // Ensure IVS fields exist (generate if missing)
-    if (!podcast.ivsStreamKey || !podcast.ivsChannelArn) {
-      const ivsChannel = await ivsCompatService.getOrCreateChannel(
-        podcast.title,
-        (podcast._id as any).toString()
-      );
-      podcast.ivsChannelArn = ivsChannel.arn;
-      podcast.ivsPlaybackUrl = ivsChannel.playbackUrl;
-      podcast.ivsStreamKey = ivsChannel.streamKey;
-      podcast.ivsIngestEndpoint = ivsChannel.ingestEndpoint;
-    }
-
-    // Use IVS stream key as the session ID for RTMP authorization
-    const sessionId = podcast.ivsStreamKey;
+    // Generate unique session ID for this live stream
+    const sessionId = uuidv4();
 
     // Start recording if enabled
     if (podcast.isRecording) {
@@ -376,10 +347,6 @@ export const startPodcast = catchAsync(
       sessionId
     );
 
-    // Get actual local RTMP/HLS URLs for clients
-    const localIngestUrl = ivsCompatService.getLocalIngestUrl();
-    const localPlaybackUrl = ivsCompatService.getLocalPlaybackUrl(sessionId);
-
     res.status(httpStatus.OK).json({
       status: "success",
       message: "Podcast broadcast started",
@@ -390,19 +357,12 @@ export const startPodcast = catchAsync(
           description: podcast.description,
           coverImage: podcast.coverImage,
           status: podcast.status,
-          ivsChannelArn: podcast.ivsChannelArn,
-          ivsPlaybackUrl: podcast.ivsPlaybackUrl,
-          ivsStreamKey: podcast.ivsStreamKey,
-          ivsIngestEndpoint: podcast.ivsIngestEndpoint,
           liveSessionId: sessionId,
           actualStart: podcast.actualStart,
           currentListeners: podcast.currentListeners,
           peakListeners: podcast.peakListeners,
           isRecording: podcast.isRecording,
           streamConfig,
-          // Actual local endpoints for OBS and playback
-          localRtmpIngestUrl: localIngestUrl,
-          localHlsPlaybackUrl: localPlaybackUrl,
         },
       },
     });

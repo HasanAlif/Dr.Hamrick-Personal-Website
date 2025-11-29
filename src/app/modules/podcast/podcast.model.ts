@@ -18,7 +18,7 @@ export interface IStreamConfig {
   channelId: string;
   sessionId: string | null;
   socketNamespace: string;
-  ingestEndpoint: string;
+  socketEndpoint: string;
   playbackMethod: string;
   playbackUrl: string | null;
   recordingBucket: string;
@@ -33,12 +33,6 @@ export interface IPodcast extends Document {
   date?: Date;
   status: PodcastStatus;
   admin: Types.ObjectId;
-
-  // AWS IVS-compatible fields
-  ivsChannelArn?: string;
-  ivsPlaybackUrl?: string;
-  ivsStreamKey?: string;
-  ivsIngestEndpoint?: string;
 
   // Live session data
   liveSessionId?: string;
@@ -125,19 +119,6 @@ const PodcastSchema = new Schema<IPodcast>(
       ref: "User",
       required: [true, "Admin is required"],
       index: true,
-    },
-    ivsChannelArn: {
-      type: String,
-    },
-    ivsPlaybackUrl: {
-      type: String,
-    },
-    ivsStreamKey: {
-      type: String,
-      index: true,
-    },
-    ivsIngestEndpoint: {
-      type: String,
     },
     liveSessionId: {
       type: String,

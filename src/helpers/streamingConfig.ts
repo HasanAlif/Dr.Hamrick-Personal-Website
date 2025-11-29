@@ -1,11 +1,11 @@
 import config from "../config";
 
-// Generate streaming configuration for a podcast This provides AWS IVS-like structure adapted for Socket.IO + Google Cloud Storage
+// Generate streaming configuration for a podcast using Socket.IO
 export interface StreamConfig {
   channelId: string;
   sessionId: string | null;
   socketNamespace: string;
-  ingestEndpoint: string;
+  socketEndpoint: string;
   playbackMethod: string;
   playbackUrl: string | null;
   recordingBucket: string;
@@ -27,7 +27,7 @@ export function generateStreamConfig(podcastId: string): StreamConfig {
     channelId: `podcast_${podcastId}`,
     sessionId: null,
     socketNamespace: "/podcast",
-    ingestEndpoint: getSocketEndpoint(),
+    socketEndpoint: getSocketEndpoint(),
     playbackMethod: "socket.io",
     playbackUrl: null,
     recordingBucket: `gs://${config.gcs.bucketName}/podcasts/`,
@@ -36,34 +36,21 @@ export function generateStreamConfig(podcastId: string): StreamConfig {
 }
 
 // Generate streaming configuration for live podcast with active session
-// Includes both Socket.IO and RTMP endpoints for OBS support
 export function generateLiveStreamConfig(
   podcastId: string,
   sessionId: string
-): StreamConfig & {
-  rtmpIngestUrl?: string;
-  rtmpStreamKey?: string;
-  hlsPlaybackUrl?: string;
-} {
+): StreamConfig {
   const socketEndpoint = getSocketEndpoint();
-  const serverHost = config.serverUrl.replace(/^https?:\/\//, "");
-  const rtmpPort = config.rtmp?.port || 1935;
-  const httpPort = config.rtmp?.httpPort || 8000;
 
   return {
     channelId: `podcast_${podcastId}`,
     sessionId,
     socketNamespace: "/podcast",
-    ingestEndpoint: socketEndpoint,
+    socketEndpoint,
     playbackMethod: "socket.io",
     playbackUrl: `${socketEndpoint}?namespace=/podcast&room=${podcastId}`,
     recordingBucket: `gs://${config.gcs.bucketName}/podcasts/`,
     roomId: podcastId,
-
-    // RTMP endpoints for OBS streaming
-    rtmpIngestUrl: `rtmp://${serverHost}:${rtmpPort}/live`,
-    rtmpStreamKey: sessionId,
-    hlsPlaybackUrl: `http://${serverHost}:${httpPort}/live/${sessionId}/index.m3u8`,
   };
 }
 
@@ -77,7 +64,7 @@ export function generateRecordedStreamConfig(
     channelId: `podcast_${podcastId}`,
     sessionId,
     socketNamespace: "/podcast",
-    ingestEndpoint: getSocketEndpoint(),
+    socketEndpoint: getSocketEndpoint(),
     playbackMethod: recordingUrl ? "direct" : "socket.io",
     playbackUrl: recordingUrl || null,
     recordingBucket: `gs://${config.gcs.bucketName}/podcasts/`,

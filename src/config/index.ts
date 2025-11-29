@@ -43,11 +43,4 @@ export default {
   upload: {
     maxVideoSize: Number(process.env.MAX_VIDEO_SIZE) || 5368709120, // 5GB default
   },
-
-  // RTMP Server Configuration for OBS streaming
-  rtmp: {
-    port: Number(process.env.RTMP_PORT) || 1935,
-    httpPort: Number(process.env.RTMP_HTTP_PORT) || 8000,
-    ffmpegPath: process.env.FFMPEG_PATH || "/usr/bin/ffmpeg",
-  },
 };
