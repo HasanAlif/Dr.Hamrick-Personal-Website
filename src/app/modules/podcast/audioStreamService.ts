@@ -1,17 +1,43 @@
 import { Storage } from "@google-cloud/storage";
 import config from "../../../config";
 import path from "path";
+import fs from "fs";
 import { Readable } from "stream";
 
 // Signed URL configuration
 const SIGNED_URL_EXPIRATION_DAYS = 7;
 const SIGNED_URL_VERSION = "v4" as const;
 
-const storage = new Storage({
-  projectId: config.gcs.projectId,
-  keyFilename: path.join(process.cwd(), config.gcs.keyFile || ""),
-});
+// Initialize Google Cloud Storage with flexible authentication
+// Priority: 1. Environment variables (for production) 2. Key file (for local dev)
+const initializeStorage = (): Storage => {
+  const projectId = config.gcs.projectId;
 
+  // Check if we have environment variable credentials (production)
+  if (config.gcs.clientEmail && config.gcs.privateKey) {
+    return new Storage({
+      projectId,
+      credentials: {
+        client_email: config.gcs.clientEmail,
+        private_key: config.gcs.privateKey,
+      },
+    });
+  }
+
+  // Check if key file exists (local development)
+  const keyFilePath = path.join(process.cwd(), config.gcs.keyFile || "");
+  if (config.gcs.keyFile && fs.existsSync(keyFilePath)) {
+    return new Storage({
+      projectId,
+      keyFilename: keyFilePath,
+    });
+  }
+
+  // Fallback: Try default credentials (GCE, Cloud Run, etc.)
+  return new Storage({ projectId });
+};
+
+const storage = initializeStorage();
 const bucket = storage.bucket(config.gcs.bucketName || "");
 
 interface AudioRecording {
