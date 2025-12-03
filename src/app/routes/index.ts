@@ -8,7 +8,7 @@ import { podcastRoutes } from "../modules/podcast/podcast.routes";
 import { SearchRoutes } from "../modules/search/search.routes";
 import { lifeSuggestionRoutes } from "../modules/lifeSuggestion/lifeSuggestion.routes";
 import { socialLinkRoutes } from "../modules/socialLink/socialLink.routes";
-import { rssFeedRoutes } from "../modules/RssFeed/RssFeed.route";
+import { rssFeedRoutes } from "../modules/RssFeedUsers/RssFeed.route";
 
 const router = express.Router();
 
