@@ -251,7 +251,7 @@ export const NOTIFICATION_EMAIL_TEMPLATE = (
           <!-- Header -->
           <tr>
             <td style="background: linear-gradient(135deg, #8b0000 0%, #450000 100%); padding: 40px 30px; text-align: center; border-bottom: 3px solid #ff5656;">
-              <div style="display: inline-block; width: 70px; height: 70px; background: linear-gradient(135deg, #ff5656, #ff9a9a); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 32px; color: #1a0000; box-shadow: 0 8px 24px rgba(255, 86, 86, 0.4); margin-bottom: 20px;">PG-65</div>
+              <div style="display: inline-block; width: 70px; height: 70px; background: linear-gradient(135deg, #ff5656, #ff9a9a); border-radius: 50%;  padding: 18px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 32px; color: #1a0000; box-shadow: 0 8px 24px rgba(255, 86, 86, 0.4); margin-bottom: 20px;">PG-65</div>
               <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">Dr. Irene Hamrick</h1>
               <p style="margin: 8px 0 0; color: #ffcccc; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;">New Content Available</p>
             </td>
