@@ -23,6 +23,7 @@ export default {
   },
 
   site_name: process.env.WEBSITE_NAME,
+  site_url: process.env.WEBSITE_URL,
   contact_mail: process.env.CONTACT_MAIL,
 
   // Server URL for streaming endpoints

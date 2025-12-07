@@ -78,140 +78,112 @@ const sendToSubscribers = async (): Promise<INotificationResult> => {
     );
   }
 
-  // Step 5: Start transaction only for marking content as notified
-  const session = await mongoose.startSession();
+  // Step 5: Mark all content as notified BEFORE sending emails (prevents duplicate notifications on retry)
+  const markAsNotifiedPromises = [];
 
-  try {
-    session.startTransaction();
-
-    // Step 6: Mark all content as notified BEFORE sending emails (prevents duplicate notifications on retry)
-    const markAsNotifiedPromises = [];
-
-    if (counts.blogs > 0) {
-      markAsNotifiedPromises.push(
-        Blog.updateMany(
-          { isNotified: false, status: true },
-          { $set: { isNotified: true } },
-          { session }
-        )
-      );
-    }
-
-    if (counts.publications > 0) {
-      markAsNotifiedPromises.push(
-        Publications.updateMany(
-          { isNotified: false, status: true },
-          { $set: { isNotified: true } },
-          { session }
-        )
-      );
-    }
-
-    if (counts.videos > 0) {
-      markAsNotifiedPromises.push(
-        Video.updateMany(
-          { isNotified: false, status: true, isDeleted: false },
-          { $set: { isNotified: true } },
-          { session }
-        )
-      );
-    }
-
-    if (counts.podcasts > 0) {
-      markAsNotifiedPromises.push(
-        Podcast.updateMany(
-          { isNotified: false },
-          { $set: { isNotified: true } },
-          { session }
-        )
-      );
-    }
-
-    if (counts.lifeSuggestions > 0) {
-      markAsNotifiedPromises.push(
-        LifeSuggestion.updateMany(
-          { isNotified: false },
-          { $set: { isNotified: true } },
-          { session }
-        )
-      );
-    }
-
-    await Promise.all(markAsNotifiedPromises);
-
-    // Commit transaction before sending emails (database operations complete)
-    await session.commitTransaction();
-    session.endSession();
-
-    // Step 7: Send emails to all subscribers (outside transaction for better error handling)
-    const websiteUrl =
-      config.serverUrl?.replace(/\/api.*$/, "") ||
-      "https://ihamrick-frontend.vercel.app";
-
-    let emailsSent = 0;
-    let emailsFailed = 0;
-
-    // Send emails in batches to avoid overwhelming the SMTP server
-    const batchSize = 50;
-    for (let i = 0; i < subscribers.length; i += batchSize) {
-      const batch = subscribers.slice(i, i + batchSize);
-
-      const emailPromises = batch.map(async (subscriber) => {
-        try {
-          const emailHtml = NOTIFICATION_EMAIL_TEMPLATE({
-            subscriberName: subscriber.name,
-            counts,
-            livePodcasts: livePodcastCount,
-            websiteUrl,
-          });
-
-          await emailSender(
-            subscriber.email,
-            emailHtml,
-            livePodcastCount > 0
-              ? "🔴 Dr. Irene Hamrick is Live Now!"
-              : "New Content from Dr. Irene Hamrick"
-          );
-
-          return { success: true, email: subscriber.email };
-        } catch (error) {
-          console.error(`Failed to send email to ${subscriber.email}:`, error);
-          return { success: false, email: subscriber.email };
-        }
-      });
-
-      const results = await Promise.allSettled(emailPromises);
-
-      results.forEach((result) => {
-        if (result.status === "fulfilled" && result.value.success) {
-          emailsSent++;
-        } else {
-          emailsFailed++;
-        }
-      });
-
-      // Small delay between batches to respect rate limits
-      if (i + batchSize < subscribers.length) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-    }
-
-    return {
-      subscribersNotified: subscribers.length,
-      contentCounts: counts,
-      livePodcasts: livePodcastCount,
-      emailsSent,
-      emailsFailed,
-    };
-  } catch (error) {
-    if (session.inTransaction()) {
-      await session.abortTransaction();
-    }
-    if (!session.hasEnded) {
-      session.endSession();
-    }
-    throw error;
+  if (counts.blogs > 0) {
+    markAsNotifiedPromises.push(
+      Blog.updateMany(
+        { isNotified: false, status: true },
+        { $set: { isNotified: true } }
+      )
+    );
   }
+
+  if (counts.publications > 0) {
+    markAsNotifiedPromises.push(
+      Publications.updateMany(
+        { isNotified: false, status: true },
+        { $set: { isNotified: true } }
+      )
+    );
+  }
+
+  if (counts.videos > 0) {
+    markAsNotifiedPromises.push(
+      Video.updateMany(
+        { isNotified: false, status: true, isDeleted: false },
+        { $set: { isNotified: true } }
+      )
+    );
+  }
+
+  if (counts.podcasts > 0) {
+    markAsNotifiedPromises.push(
+      Podcast.updateMany({ isNotified: false }, { $set: { isNotified: true } })
+    );
+  }
+
+  if (counts.lifeSuggestions > 0) {
+    markAsNotifiedPromises.push(
+      LifeSuggestion.updateMany(
+        { isNotified: false },
+        { $set: { isNotified: true } }
+      )
+    );
+  }
+
+  // Execute all updates in parallel
+  await Promise.all(markAsNotifiedPromises);
+
+  // Step 6: Send emails to all subscribers
+  const websiteUrl = config.site_url || "https://ihamrick-frontend.vercel.app/";
+
+  let emailsSent = 0;
+  let emailsFailed = 0;
+
+  // Send emails in batches to avoid overwhelming the SMTP server
+  const batchSize = 50;
+  for (let i = 0; i < subscribers.length; i += batchSize) {
+    const batch = subscribers.slice(i, i + batchSize);
+
+    const emailPromises = batch.map(async (subscriber) => {
+      try {
+        const emailHtml = NOTIFICATION_EMAIL_TEMPLATE({
+          subscriberName: subscriber.name,
+          counts,
+          livePodcasts: livePodcastCount,
+          websiteUrl,
+        });
+
+        await emailSender(
+          subscriber.email,
+          emailHtml,
+          livePodcastCount > 0
+            ? "🔴 Dr. Irene Hamrick is Live Now!"
+            : "New Content from Dr. Irene Hamrick"
+        );
+
+        return { success: true, email: subscriber.email };
+      } catch (error) {
+        console.error(`Failed to send email to ${subscriber.email}:`, error);
+        return { success: false, email: subscriber.email };
+      }
+    });
+
+    const results = await Promise.allSettled(emailPromises);
+
+    results.forEach((result) => {
+      if (result.status === "fulfilled" && result.value.success) {
+        emailsSent++;
+      } else {
+        emailsFailed++;
+      }
+    });
+
+    // Small delay between batches to respect rate limits
+    if (i + batchSize < subscribers.length) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+
+  return {
+    subscribersNotified: subscribers.length,
+    contentCounts: counts,
+    livePodcasts: livePodcastCount,
+    emailsSent,
+    emailsFailed,
+  };
 };
 
 export const notificationService = {
