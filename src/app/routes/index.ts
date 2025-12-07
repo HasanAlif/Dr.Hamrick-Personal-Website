@@ -10,6 +10,7 @@ import { lifeSuggestionRoutes } from "../modules/lifeSuggestion/lifeSuggestion.r
 import { socialLinkRoutes } from "../modules/socialLink/socialLink.routes";
 import { rssFeedRoutes } from "../modules/RssFeedUsers/RssFeed.route";
 import { notificationRoutes } from "../modules/notification/notification.routes";
+import { websiteContentRoutes } from "../modules/websiteContent/websiteContent.routes";
 
 const router = express.Router();
 
@@ -57,6 +58,10 @@ const moduleRoutes = [
   {
     path: "/notifications",
     route: notificationRoutes,
+  },
+  {
+    path: "/website-content",
+    route: websiteContentRoutes,
   },
 ];
 
