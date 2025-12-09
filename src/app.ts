@@ -16,6 +16,7 @@ export const corsOptions = {
     "http://10.10.20.6:3000",
     "https://ihamrick-frontend.vercel.app",
     "https://www.ihamrick-frontend.vercel.app",
+    "https://pg-65.com",
   ],
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
