@@ -18,7 +18,8 @@ export const corsOptions = {
     "https://www.ihamrick-frontend.vercel.app",
     "https://pg-65.com",
     "https://www.pg-65.com",
-    "*",
+    "https://dashboard.pg-65.com",
+    "https://www.dashboard.pg-65.com"
   ],
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
