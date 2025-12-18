@@ -19,15 +19,30 @@ export const corsOptions = {
     "https://pg-65.com",
     "https://www.pg-65.com",
     "https://dashboard.pg-65.com",
-    "https://www.dashboard.pg-65.com"
+    "https://www.dashboard.pg-65.com",
+    "https://api.pg-65.com",
+    "https://www.api.pg-65.com"
   ],
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "Accept",
+    "X-Requested-With",
+    "Cache-Control",
+    "Origin",
+    "X-Auth-Token"
+  ],
+  exposedHeaders: ["Content-Range", "X-Content-Range"],
   credentials: true,
+  maxAge: 86400, // Cache preflight for 24 hours
 };
 
 // Middleware setup
 app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options("*", cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
