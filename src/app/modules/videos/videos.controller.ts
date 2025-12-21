@@ -252,12 +252,140 @@ const watchVideo = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Update video details
-const updateVideo = catchAsync(async (req: Request, res: Response) => {
+// Update video details with optional file replacement
+const updateVideo = catchAsync(async (req: MulterRequest, res: Response) => {
   const { id } = req.params;
   const updateData = req.body;
 
-  const result = await videosService.updateIntoDb(id, updateData);
+  // Get files from request
+  const files = req.files as
+    | { [fieldname: string]: Express.Multer.File[] }
+    | undefined;
+  const videoFile = files?.["video"]?.[0];
+  const thumbnailFile = files?.["thumbnail"]?.[0] || files?.["coverImage"]?.[0];
+
+  // Prepare file data object
+  let fileData: {
+    videoUrl?: string;
+    signedUrl?: string;
+    fileName?: string;
+    fileSize?: number;
+    contentType?: string;
+    thumbnailUrl?: string;
+  } = {};
+
+  // Upload new video if provided
+  if (videoFile) {
+    // Validate video file
+    if (!videoFile.buffer || videoFile.buffer.length === 0) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        "Uploaded video file is empty"
+      );
+    }
+
+    if (videoFile.size > 5368709120) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        `File size (${(videoFile.size / (1024 * 1024 * 1024)).toFixed(
+          2
+        )}GB) exceeds maximum limit of 5GB`
+      );
+    }
+
+    console.log(
+      `📤 Uploading new video: ${videoFile.originalname} (${(
+        videoFile.size /
+        (1024 * 1024)
+      ).toFixed(2)}MB)`
+    );
+
+    const uploadResult = await googleCloudStorage.uploadVideo(videoFile);
+    fileData.videoUrl = uploadResult.publicUrl;
+    fileData.signedUrl = uploadResult.signedUrl;
+    fileData.fileName = uploadResult.fileName;
+    fileData.fileSize = uploadResult.fileSize;
+    fileData.contentType = uploadResult.contentType;
+  }
+
+  // Upload new thumbnail if provided
+  if (thumbnailFile) {
+    console.log(`📸 Uploading new thumbnail: ${thumbnailFile.originalname}`);
+    const { fileUploader } = await import("../../../helpers/fileUploader");
+    const thumbnailUploadResult = await fileUploader.uploadToCloudinary(
+      thumbnailFile
+    );
+    fileData.thumbnailUrl = thumbnailUploadResult.Location;
+  }
+
+  // Parse and validate updateData fields
+  const parsedData: any = {};
+
+  if (updateData.title !== undefined && updateData.title.trim().length > 0) {
+    if (updateData.title.trim().length > 200) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        "Title cannot exceed 200 characters"
+      );
+    }
+    parsedData.title = updateData.title.trim();
+  }
+
+  if (updateData.description !== undefined) {
+    if (updateData.description.length > 5000) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        "Description cannot exceed 5000 characters"
+      );
+    }
+    parsedData.description = updateData.description.trim();
+  }
+
+  if (updateData.transcription !== undefined) {
+    if (updateData.transcription.length > 50000) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        "Transcription cannot exceed 50000 characters"
+      );
+    }
+    parsedData.transcription = updateData.transcription.trim();
+  }
+
+  if (updateData.uploadDate !== undefined) {
+    const uploadDateParsed = Date.parse(updateData.uploadDate);
+    if (isNaN(uploadDateParsed)) {
+      throw new ApiError(httpStatus.BAD_REQUEST, "Invalid date format");
+    }
+    parsedData.uploadDate = updateData.uploadDate;
+  }
+
+  if (updateData.status !== undefined) {
+    parsedData.status =
+      updateData.status === true || updateData.status === "true";
+  }
+
+  if (updateData.duration !== undefined && updateData.duration !== "") {
+    const duration = parseFloat(updateData.duration);
+    if (isNaN(duration) || duration < 0 || duration > 86400) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        "Duration must be between 0 and 86400 seconds"
+      );
+    }
+    parsedData.duration = duration;
+  }
+
+  // Merge parsed data with file data
+  const mergedData = { ...parsedData, ...fileData };
+
+  // Check if there's anything to update
+  if (Object.keys(mergedData).length === 0) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "No valid update data provided");
+  }
+
+  const result = await videosService.updateIntoDb(id, mergedData);
+
+  console.log(`✅ Video updated: ${result._id}`);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

@@ -155,7 +155,12 @@ router.get("/:id", videosController.getVideoById);
 router.put(
   "/:id",
   auth(UserRole.ADMIN),
-  validateRequest(videosValidation.updateSchema),
+  upload.fields([
+    { name: "video", maxCount: 1 },
+    { name: "thumbnail", maxCount: 1 },
+    { name: "coverImage", maxCount: 1 },
+  ]),
+  handleMulterError,
   videosController.updateVideo
 );
 

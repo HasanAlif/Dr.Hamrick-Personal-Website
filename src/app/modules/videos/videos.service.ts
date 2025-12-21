@@ -165,45 +165,90 @@ const getByIdFromDb = async (id: string, incrementView: boolean = false) => {
   return result;
 };
 
-const updateIntoDb = async (id: string, data: Partial<IVideo>) => {
-  const session = await mongoose.startSession();
+// Interface for update data including file fields
+interface IVideoUpdateData {
+  title?: string;
+  description?: string;
+  transcription?: string;
+  uploadDate?: string | Date;
+  status?: boolean;
+  duration?: number;
+  videoUrl?: string;
+  signedUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  contentType?: string;
+  thumbnailUrl?: string;
+}
 
-  try {
-    session.startTransaction();
-
-    // Prevent updating sensitive fields
-    const updateData: any = { ...data };
-    delete updateData.videoUrl;
-    delete updateData.thumbnailUrl;
-    delete updateData.fileName;
-    delete updateData.fileSize;
-    delete updateData.contentType;
-    delete updateData.views;
-    delete updateData.isDeleted;
-
-    // Convert uploadDate string to Date if needed
-    if (updateData.uploadDate && typeof updateData.uploadDate === "string") {
-      updateData.uploadDate = new Date(updateData.uploadDate);
-    }
-
-    const result = await Video.findByIdAndUpdate(
-      id,
-      { ...updateData, updatedAt: new Date() },
-      { new: true, session, runValidators: true }
-    );
-
-    if (!result) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Video not found");
-    }
-
-    await session.commitTransaction();
-    return result;
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
+const updateIntoDb = async (id: string, data: IVideoUpdateData) => {
+  // Get existing video first
+  const existingVideo = await Video.findById(id);
+  if (!existingVideo || existingVideo.isDeleted) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Video not found");
   }
+
+  // Store old URLs for deletion after successful update
+  const oldVideoUrl = existingVideo.videoUrl;
+  const oldThumbnailUrl = existingVideo.thumbnailUrl;
+  const isVideoReplaced = !!data.videoUrl;
+  const isThumbnailReplaced = !!data.thumbnailUrl;
+
+  // Build update object - only include provided fields
+  const updateData: any = {};
+
+  // Text fields
+  if (data.title !== undefined) updateData.title = data.title;
+  if (data.description !== undefined) updateData.description = data.description;
+  if (data.transcription !== undefined)
+    updateData.transcription = data.transcription;
+  if (data.status !== undefined) updateData.status = data.status;
+  if (data.duration !== undefined) updateData.duration = data.duration;
+
+  // Convert uploadDate string to Date if needed
+  if (data.uploadDate !== undefined) {
+    updateData.uploadDate =
+      typeof data.uploadDate === "string"
+        ? new Date(data.uploadDate)
+        : data.uploadDate;
+  }
+
+  // File fields (only if new files were uploaded)
+  if (data.videoUrl !== undefined) updateData.videoUrl = data.videoUrl;
+  if (data.signedUrl !== undefined) updateData.signedUrl = data.signedUrl;
+  if (data.fileName !== undefined) updateData.fileName = data.fileName;
+  if (data.fileSize !== undefined) updateData.fileSize = data.fileSize;
+  if (data.contentType !== undefined) updateData.contentType = data.contentType;
+  if (data.thumbnailUrl !== undefined)
+    updateData.thumbnailUrl = data.thumbnailUrl;
+
+  // Update the video in database
+  const result = await Video.findByIdAndUpdate(
+    id,
+    { ...updateData, updatedAt: new Date() },
+    { new: true, runValidators: true }
+  );
+
+  if (!result) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Video not found");
+  }
+
+  // Delete old files AFTER successful database update (fire and forget)
+  if (isVideoReplaced && oldVideoUrl) {
+    deleteFromGCS(oldVideoUrl).catch((err) => {
+      console.error("Failed to delete old video from GCS:", err);
+    });
+  }
+
+  if (isThumbnailReplaced && oldThumbnailUrl) {
+    import("../../../helpers/fileUploader").then(({ fileUploader }) => {
+      fileUploader.deleteFromCloudinary(oldThumbnailUrl).catch((err: any) => {
+        console.error("Failed to delete old thumbnail from Cloudinary:", err);
+      });
+    });
+  }
+
+  return result;
 };
 
 const deleteItemFromDb = async (id: string) => {
