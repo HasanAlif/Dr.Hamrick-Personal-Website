@@ -132,7 +132,6 @@ const handleMulterError = (
   next(err);
 };
 
-// Routes
 router.post(
   "/upload",
   auth(UserRole.ADMIN),
@@ -145,15 +144,12 @@ router.post(
   videosController.createVideo
 );
 
-// Public routes
 router.get("/", videosController.getVideosList);
+
 router.get("/watch/:id", videosController.watchVideo);
 
-// Admin/Preview endpoint - get video details without incrementing views
-router.get("/:id", videosController.getVideoById);
-
 router.put(
-  "/:id",
+  "/update/:id",
   auth(UserRole.ADMIN),
   upload.fields([
     { name: "video", maxCount: 1 },
@@ -164,6 +160,12 @@ router.put(
   videosController.updateVideo
 );
 
-router.delete("/:id", auth(UserRole.ADMIN), videosController.deleteVideo);
+router.delete(
+  "/delete/:id",
+  auth(UserRole.ADMIN),
+  videosController.deleteVideo
+);
+
+router.get("/:id", videosController.getVideoById);
 
 export const videosRoutes = router;
