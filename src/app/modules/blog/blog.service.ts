@@ -1,44 +1,54 @@
 import mongoose from "mongoose";
-import { Blog } from "./blog.model";
+import { Blog, BlogStatus } from "./blog.model";
 import ApiError from "../../../errors/ApiErrors";
 import httpStatus from "http-status";
 import { paginationHelper } from "../../../helpers/paginationHelper";
 import { IPaginationOptions } from "../../../interfaces/paginations";
 
-const createIntoDb = async (blogData: any) => {
-  const session = await mongoose.startSession();
+interface IBlogCreateData {
+  title: string;
+  description: string;
+  uploadDate?: string;
+  status?: BlogStatus;
+  scheduledAt?: string;
+  coverImage?: string;
+}
 
-  try {
-    session.startTransaction();
+const createIntoDb = async (blogData: IBlogCreateData) => {
+  const sanitizedBlogData: any = {
+    title: blogData.title,
+    description: blogData.description,
+    status: blogData.status || BlogStatus.PUBLISHED,
+    coverImage: blogData.coverImage,
+  };
 
-    const sanitizedBlogData = {
-      title: blogData.title,
-      description: blogData.description,
-      status: blogData.status !== undefined ? blogData.status : true,
-      coverImage: blogData.coverImage,
-    };
-
-    const result = await Blog.create([sanitizedBlogData], { session });
-
-    await session.commitTransaction();
-    return result[0];
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
+  // Handle scheduled blogs
+  if (blogData.status === BlogStatus.SCHEDULED && blogData.scheduledAt) {
+    sanitizedBlogData.scheduledAt = new Date(blogData.scheduledAt);
+    // If uploadDate is not provided, set it to scheduledAt
+    sanitizedBlogData.uploadDate = blogData.uploadDate
+      ? new Date(blogData.uploadDate)
+      : sanitizedBlogData.scheduledAt;
+  } else {
+    // For non-scheduled blogs, use provided uploadDate or current date
+    sanitizedBlogData.uploadDate = blogData.uploadDate
+      ? new Date(blogData.uploadDate)
+      : new Date();
   }
+
+  const result = await Blog.create(sanitizedBlogData);
+  return result;
 };
 
 const getListFromDb = async (
-  filters: { searchTerm?: string; status?: boolean } = {},
+  filters: { searchTerm?: string; status?: string } = {},
   paginationOptions: IPaginationOptions = {}
 ) => {
-  const { searchTerm, ...filterData } = filters;
+  const { searchTerm, status } = filters;
   const { page, limit, skip, sortBy, sortOrder } =
     paginationHelper.calculatePagination(paginationOptions);
 
-  const andConditions = [];
+  const andConditions: any[] = [];
 
   if (searchTerm) {
     andConditions.push({
@@ -49,8 +59,9 @@ const getListFromDb = async (
     });
   }
 
-  if (filterData.status !== undefined) {
-    andConditions.push({ status: filterData.status });
+  // Filter by status enum value
+  if (status) {
+    andConditions.push({ status: status });
   }
 
   andConditions.push({ isDeleted: { $ne: true } });
@@ -65,13 +76,12 @@ const getListFromDb = async (
     sortConditions.createdAt = -1;
   }
 
-  // Apply pagination only if limit is provided
   let query = Blog.find(whereConditions).sort(sortConditions);
-  
+
   if (limit > 0) {
     query = query.skip(skip).limit(limit);
   }
-  
+
   const result = await query;
   const total = await Blog.countDocuments(whereConditions);
 
@@ -87,14 +97,14 @@ const getListFromDb = async (
 };
 
 const getWebsiteBlogList = async (
-  filters: { searchTerm?: string; status?: boolean } = {},
+  filters: { searchTerm?: string } = {},
   paginationOptions: IPaginationOptions = {}
 ) => {
-  const { searchTerm, ...filterData } = filters;
+  const { searchTerm } = filters;
   const { page, limit, skip, sortBy, sortOrder } =
     paginationHelper.calculatePagination(paginationOptions);
 
-  const andConditions = [];
+  const andConditions: any[] = [];
 
   if (searchTerm) {
     andConditions.push({
@@ -105,9 +115,8 @@ const getWebsiteBlogList = async (
     });
   }
 
-  if (filterData.status !== undefined) {
-    andConditions.push({ status: filterData.status });
-  }
+  // Only show published blogs on website
+  andConditions.push({ status: BlogStatus.PUBLISHED });
 
   const whereConditions =
     andConditions.length > 0 ? { $and: andConditions } : {};
@@ -119,15 +128,14 @@ const getWebsiteBlogList = async (
     sortConditions.createdAt = -1;
   }
 
-  // Apply pagination only if limit is provided
-  let query = Blog.find({ ...whereConditions, status: true }).sort(sortConditions);
-  
+  let query = Blog.find(whereConditions).sort(sortConditions);
+
   if (limit > 0) {
     query = query.skip(skip).limit(limit);
   }
-  
+
   const result = await query;
-  const total = await Blog.countDocuments({ ...whereConditions, status: true });
+  const total = await Blog.countDocuments(whereConditions);
 
   return {
     meta: {
@@ -140,79 +148,98 @@ const getWebsiteBlogList = async (
   };
 };
 
-const getByIdFromDb = async (id: string) => {
+const getByIdFromDb = async (id: string, publicOnly: boolean = false) => {
   const result = await Blog.findById(id);
   if (!result) {
     throw new ApiError(httpStatus.NOT_FOUND, "Blog not found");
   }
+
+  // For public routes, only return published blogs
+  if (publicOnly && result.status !== BlogStatus.PUBLISHED) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Blog not found");
+  }
+
   return result;
 };
 
-const updateIntoDb = async (id: string, data: any) => {
-  const session = await mongoose.startSession();
+interface IBlogUpdateData {
+  title?: string;
+  description?: string;
+  uploadDate?: string;
+  status?: BlogStatus;
+  scheduledAt?: string | null;
+  coverImage?: string;
+}
 
-  try {
-    session.startTransaction();
+const updateIntoDb = async (id: string, data: IBlogUpdateData) => {
+  const existingBlog = await Blog.findById(id);
+  if (!existingBlog) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Blog not found");
+  }
 
-    // Sanitize update data
-    const sanitizedUpdateData = {
-      ...(data.title && { title: data.title }),
-      ...(data.description && { description: data.description }),
-      ...(data.status !== undefined && { status: data.status }),
-      ...(data.coverImage && { coverImage: data.coverImage }),
-      updatedAt: new Date(),
-    };
+  // Build update object
+  const updateData: any = { updatedAt: new Date() };
 
-    const result = await Blog.findByIdAndUpdate(id, sanitizedUpdateData, {
-      new: true,
-      session,
-    });
+  if (data.title !== undefined) updateData.title = data.title;
+  if (data.description !== undefined) updateData.description = data.description;
+  if (data.uploadDate !== undefined)
+    updateData.uploadDate = new Date(data.uploadDate);
+  if (data.coverImage !== undefined) updateData.coverImage = data.coverImage;
 
-    if (!result) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Blog not found");
+  // Handle status change
+  if (data.status !== undefined) {
+    updateData.status = data.status;
+
+    // If changing to scheduled, set scheduledAt
+    if (data.status === BlogStatus.SCHEDULED && data.scheduledAt) {
+      updateData.scheduledAt = new Date(data.scheduledAt);
     }
 
-    await session.commitTransaction();
-    return result;
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
+    // If changing to published or unpublished, clear scheduledAt
+    if (data.status !== BlogStatus.SCHEDULED) {
+      updateData.scheduledAt = null;
+    }
+  } else if (
+    data.scheduledAt !== undefined &&
+    existingBlog.status === BlogStatus.SCHEDULED
+  ) {
+    // Allow updating scheduledAt only if blog is still scheduled
+    updateData.scheduledAt = data.scheduledAt
+      ? new Date(data.scheduledAt)
+      : null;
   }
+
+  const result = await Blog.findByIdAndUpdate(id, updateData, {
+    new: true,
+    runValidators: true,
+  });
+
+  if (!result) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Blog not found");
+  }
+
+  return result;
 };
 
 const deleteItemFromDb = async (id: string) => {
-  const session = await mongoose.startSession();
+  const blog = await Blog.findById(id);
 
-  try {
-    session.startTransaction();
-
-    const blog = await Blog.findById(id);
-
-    if (!blog) {
-      throw new ApiError(httpStatus.NOT_FOUND, "Blog not found");
-    }
-
-    if (blog.coverImage) {
-      try {
-        const { fileUploader } = await import("../../../helpers/fileUploader");
-        await fileUploader.deleteFromCloudinary(blog.coverImage);
-      } catch (cloudinaryError) {
-        console.error("Error deleting image from Cloudinary:", cloudinaryError);
-      }
-    }
-
-    const result = await Blog.findByIdAndDelete(id);
-
-    await session.commitTransaction();
-    return result;
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
+  if (!blog) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Blog not found");
   }
+
+  // Delete cover image from Cloudinary if exists
+  if (blog.coverImage) {
+    try {
+      const { fileUploader } = await import("../../../helpers/fileUploader");
+      await fileUploader.deleteFromCloudinary(blog.coverImage);
+    } catch (cloudinaryError) {
+      console.error("Error deleting image from Cloudinary:", cloudinaryError);
+    }
+  }
+
+  const result = await Blog.findByIdAndDelete(id);
+  return result;
 };
 
 export const blogService = {

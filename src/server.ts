@@ -7,6 +7,7 @@ import { testConnection } from "./helpers/googleCloudStorage";
 import { corsOptions } from "./app";
 import { initializeSocketHandlers } from "./socket/socketHandler";
 import { startSignedUrlRefreshJob } from "./jobs/refreshSignedUrls";
+import { startScheduledBlogPublisher } from "./jobs/publishScheduledBlogs";
 
 let server: Server;
 let io: SocketIOServer;
@@ -42,6 +43,9 @@ async function startServer() {
 
   // Initialize signed URL refresh cron job
   startSignedUrlRefreshJob();
+
+  // Initialize scheduled blog publisher cron job
+  startScheduledBlogPublisher();
 }
 
 async function main() {

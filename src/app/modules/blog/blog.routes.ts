@@ -8,6 +8,7 @@ import { fileUploader } from "../../../helpers/fileUploader";
 
 const router = express.Router();
 
+// Admin routes
 router.post(
   "/create-blog",
   auth(UserRole.ADMIN),
@@ -24,12 +25,18 @@ router.put(
   blogController.updateBlog
 );
 
+router.delete("/delete/:id", auth(UserRole.ADMIN), blogController.deleteBlog);
+
+// Admin list - shows all blogs with all statuses
 router.get("/", blogController.getBlogList);
 
+// Public routes - only show published blogs
 router.get("/website-blogs", blogController.getWebsiteBlogList);
 
-router.get("/:id", blogController.getBlogById);
+// Public single blog - only returns published blogs
+router.get("/website-blogs/:id", blogController.getWebsiteBlogById);
 
-router.delete("/delete/:id", auth(UserRole.ADMIN), blogController.deleteBlog);
+// Admin single blog - returns any blog regardless of status
+router.get("/:id", blogController.getBlogById);
 
 export const blogRoutes = router;

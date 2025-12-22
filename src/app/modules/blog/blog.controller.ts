@@ -33,7 +33,7 @@ const getBlogList = catchAsync(async (req: Request, res: Response) => {
 
   const filters = {
     searchTerm: searchTerm as string,
-    status: status !== undefined ? status === "true" : undefined,
+    status: status as string,
   };
 
   const paginationOptions = {
@@ -55,11 +55,10 @@ const getBlogList = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getWebsiteBlogList = catchAsync(async (req: Request, res: Response) => {
-  const { searchTerm, status, page, limit, sortBy, sortOrder } = req.query;
+  const { searchTerm, page, limit, sortBy, sortOrder } = req.query;
 
   const filters = {
     searchTerm: searchTerm as string,
-    status: status !== undefined ? status === "true" : undefined,
   };
 
   const paginationOptions = {
@@ -83,8 +82,20 @@ const getWebsiteBlogList = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// Admin route - returns all blogs regardless of status
 const getBlogById = catchAsync(async (req, res) => {
-  const result = await blogService.getByIdFromDb(req.params.id);
+  const result = await blogService.getByIdFromDb(req.params.id, false);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Blog details retrieved successfully",
+    data: result,
+  });
+});
+
+// Public route - only returns published blogs
+const getWebsiteBlogById = catchAsync(async (req, res) => {
+  const result = await blogService.getByIdFromDb(req.params.id, true);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -139,6 +150,7 @@ export const blogController = {
   getBlogList,
   getWebsiteBlogList,
   getBlogById,
+  getWebsiteBlogById,
   updateBlog,
   deleteBlog,
 };
