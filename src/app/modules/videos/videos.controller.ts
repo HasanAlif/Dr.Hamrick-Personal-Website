@@ -5,6 +5,7 @@ import { videosService } from "./videos.service";
 import { Request, Response } from "express";
 import { googleCloudStorage } from "../../../helpers/googleCloudStorage";
 import ApiError from "../../../errors/ApiErrors";
+import { getVideoDuration } from "../../../helpers/videoHelper";
 
 interface MulterRequest extends Request {
   file?: Express.Multer.File;
@@ -122,6 +123,15 @@ const createVideo = catchAsync(async (req: MulterRequest, res: Response) => {
   );
 
   try {
+    // Extract video duration from buffer (before upload)
+    let videoDuration = 0;
+    try {
+      videoDuration = await getVideoDuration(videoFile.buffer);
+    } catch (durationError) {
+      console.warn("⚠️  Could not extract duration, using provided value or 0");
+      videoDuration = videoData.duration ? Number(videoData.duration) : 0;
+    }
+
     // Upload video to Google Cloud Storage with timeout handling
     const uploadResult = await googleCloudStorage.uploadVideo(videoFile);
 
@@ -143,7 +153,7 @@ const createVideo = catchAsync(async (req: MulterRequest, res: Response) => {
       transcription: videoData.transcription?.trim() || "",
       uploadDate: videoData.uploadDate,
       status: videoData.status === true || videoData.status === "true",
-      duration: videoData.duration ? Number(videoData.duration) : 0,
+      duration: videoDuration, // Use extracted duration
       videoUrl: uploadResult.publicUrl,
       signedUrl: uploadResult.signedUrl, // Store signed URL for frontend
       thumbnailUrl: thumbnailUrl || undefined,
