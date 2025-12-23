@@ -57,9 +57,15 @@ const updateAdminProfile = catchAsync(async (req: Request, res: Response) => {
 
   // Handle profile picture upload if provided
   if (req.file) {
-    const { fileUploader } = await import("../../../helpers/fileUploader");
-    const uploadResult = await fileUploader.uploadToCloudinary(req.file);
-    profilePictureUrl = uploadResult.Location;
+    try {
+      const { fileUploader } = await import("../../../helpers/fileUploader");
+      const uploadResult = await fileUploader.uploadProfileImage(req.file);
+      profilePictureUrl = uploadResult.Location;
+    } catch (error: any) {
+      throw new Error(
+        error.message || "Failed to upload profile picture to Cloudinary"
+      );
+    }
   }
 
   // Merge body data with uploaded file URL
@@ -141,6 +147,17 @@ const resetPassword = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// get admin info for public display
+const getAdminInfo = catchAsync(async (req: Request, res: Response) => {
+  const result = await authService.getAdminInfo();
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Admin information retrieved successfully",
+    data: result,
+  });
+});
+
 export const AuthController = {
   loginUser,
   logoutUser,
@@ -151,4 +168,5 @@ export const AuthController = {
   resetPassword,
   resendOtp,
   verifyForgotPasswordOtp,
+  getAdminInfo,
 };

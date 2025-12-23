@@ -8,18 +8,35 @@ import { fileUploader } from "../../../helpers/fileUploader";
 
 const router = express.Router();
 
+// Public routes
 // user login route
 router.post("/login", AuthController.loginUser);
 
 // user logout route
 router.post("/logout", AuthController.logoutUser);
 
+// Public admin info for website display
+router.get("/admin-info", AuthController.getAdminInfo);
+
+// Password recovery routes
+router.post("/forgot-password", AuthController.forgotPassword);
+router.post("/resend-otp", AuthController.resendOtp);
+router.post("/verify-otp", AuthController.verifyForgotPasswordOtp);
+
+router.post(
+  "/reset-password",
+  validateRequest(authValidation.resetPasswordValidationSchema),
+  AuthController.resetPassword
+);
+
+// Protected routes
 router.get("/me", auth(), AuthController.getMyProfile);
 
+// Admin only routes
 router.patch(
   "/update-profile",
   auth(UserRole.ADMIN),
-  fileUploader.upload.single("profilePicture"),
+  fileUploader.uploadProfilePicture.single("profilePicture"),
   validateRequest(authValidation.updateAdminProfileValidationSchema),
   AuthController.updateAdminProfile
 );

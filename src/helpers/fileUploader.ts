@@ -29,9 +29,42 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// File filter for profile images (only allow images)
+const profileImageFilter = (
+  req: any,
+  file: Express.Multer.File,
+  cb: multer.FileFilterCallback
+) => {
+  // Allowed image types
+  const allowedMimeTypes = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+  ];
+
+  if (allowedMimeTypes.includes(file.mimetype)) {
+    cb(null, true); // Accept file
+  } else {
+    cb(
+      new Error(
+        "Invalid file type. Only JPEG, JPG, PNG, and WEBP images are allowed."
+      )
+    );
+  }
+};
+
 // Multer configuration using memoryStorage (for DigitalOcean & Cloudinary)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
+
+const uploadProfilePicture = multer({
+  storage: storage,
+  limits: {
+    fileSize: 15 * 1024 * 1024, // 15MB limit
+  },
+  fileFilter: profileImageFilter,
+});
 
 // ✅ Fixed Cloudinary Storage
 const cloudinaryStorage = new CloudinaryStorage({
@@ -133,7 +166,7 @@ const uploadToDigitalOcean = async (file: Express.Multer.File) => {
   }
 };
 
-// Upload profile image specifically
+// Upload profile image specifically with optimizations
 const uploadProfileImage = async (file: Express.Multer.File) => {
   return uploadToCloudinary(file, "profile-images");
 };
@@ -143,37 +176,44 @@ const uploadGeneralFile = async (file: Express.Multer.File) => {
   return uploadToCloudinary(file, "user-files");
 };
 
-// Function to delete a file from Cloudinary
-const deleteFromCloudinary = async (url: string): Promise<boolean> => {
+// Extract public_id from Cloudinary URL
+const extractPublicIdFromUrl = (url: string): string | null => {
   try {
-    // Extract public_id from URL
-    // URLs look like: https://res.cloudinary.com/cloud_name/image/upload/v1234567890/folder/public_id.jpg
-    if (!url || typeof url !== "string") {
-      console.warn("Invalid URL provided for Cloudinary deletion:", url);
-      return false;
+    if (!url || typeof url !== "string" || !url.includes("cloudinary.com")) {
+      return null;
     }
 
     const splitUrl = url.split("/");
-    const publicIdWithExtension = splitUrl[splitUrl.length - 1];
-    const publicIdParts = publicIdWithExtension.split(".");
+    const uploadIndex = splitUrl.indexOf("upload");
 
-    // Remove extension to get public_id
-    let publicId = publicIdParts[0];
+    if (uploadIndex !== -1 && uploadIndex + 2 < splitUrl.length) {
+      const pathAfterUpload = splitUrl.slice(uploadIndex + 2);
+      const publicId = pathAfterUpload.join("/").split(".")[0];
+      return publicId;
+    }
 
-    // If URL has version (v1234567890), we need to get folder/public_id
-    const folderIndex = splitUrl.indexOf("upload");
-    if (folderIndex !== -1 && folderIndex + 2 < splitUrl.length) {
-      // Get everything after 'upload', excluding the version part
-      publicId = splitUrl.slice(folderIndex + 2).join("/");
-      // Remove file extension if present
-      publicId = publicId.split(".")[0];
+    return null;
+  } catch (error) {
+    console.error("Error extracting public_id from URL:", error);
+    return null;
+  }
+};
+
+// Function to delete a file from Cloudinary
+const deleteFromCloudinary = async (url: string): Promise<boolean> => {
+  try {
+    const publicId = extractPublicIdFromUrl(url);
+
+    if (!publicId) {
+      console.warn("Could not extract public_id from URL:", url);
+      return false;
     }
 
     // Destroy the image in Cloudinary
     const result = await cloudinary.uploader.destroy(publicId);
 
     console.log("Cloudinary delete result:", result);
-    return result.result === "ok";
+    return result.result === "ok" || result.result === "not found";
   } catch (error) {
     console.error("Error deleting file from Cloudinary:", error);
     return false;
@@ -194,4 +234,6 @@ export const fileUploader = {
   uploadProfileImage,
   uploadGeneralFile,
   deleteFromCloudinary,
+  uploadProfilePicture, // New: For profile image uploads with validation
+  extractPublicIdFromUrl, // New: Helper to extract public_id
 };

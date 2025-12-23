@@ -47,10 +47,27 @@ const resetPasswordValidationSchema = z.object({
 
 const updateAdminProfileValidationSchema = z.object({
   body: z.object({
-    userName: z.string().trim().optional(),
+    userName: z
+      .string()
+      .trim()
+      .min(1, "Name cannot be empty")
+      .max(100, "Name cannot exceed 100 characters")
+      .optional(),
     email: z.string().email("Please provide a valid email address").optional(),
-    phoneNumber: z.string().trim().optional(),
-    location: z.string().trim().optional(),
+    phoneNumber: z
+      .string()
+      .trim()
+      .regex(
+        /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/,
+        "Please provide a valid phone number"
+      )
+      .optional(),
+    location: z
+      .string()
+      .trim()
+      .min(1, "Location cannot be empty")
+      .max(200, "Location cannot exceed 200 characters")
+      .optional(),
   }),
 });
 

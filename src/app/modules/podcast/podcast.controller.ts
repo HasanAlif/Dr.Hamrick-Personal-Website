@@ -39,10 +39,10 @@ export const createPodcast = catchAsync(
       status: PodcastStatus.SCHEDULED,
     });
 
-    const populatedPodcast = await Podcast.findById(podcast._id).populate(
-      "admin",
-      "firstName lastName email profilePicture"
-    );
+    // const populatedPodcast = await Podcast.findById(podcast._id).populate(
+    //   "admin",
+    //   "firstName lastName email profilePicture"
+    // );
 
     // Generate streaming configuration
     const streamConfig = generateStreamConfig((podcast._id as any).toString());
@@ -52,7 +52,7 @@ export const createPodcast = catchAsync(
       message: "Podcast created successfully",
       data: {
         podcast: {
-          ...populatedPodcast!.toObject(),
+          // ...populatedPodcast!.toObject(),
           streamConfig,
         },
       },

@@ -116,6 +116,17 @@ const updateAdminProfile = async (
     }
   }
 
+  // Delete old profile picture from Cloudinary if new one is being uploaded
+  if (payload.profilePicture && user.profilePicture) {
+    try {
+      const { fileUploader } = await import("../../../helpers/fileUploader");
+      await fileUploader.deleteFromCloudinary(user.profilePicture);
+    } catch (error) {
+      console.error("Error deleting old profile picture:", error);
+      // Continue with update even if deletion fails
+    }
+  }
+
   // Update only provided fields
   const updateData: any = {};
   if (payload.userName !== undefined) updateData.userName = payload.userName;
@@ -350,6 +361,30 @@ const resetPassword = async (
   return { message: "Password reset successfully" };
 };
 
+// get admin info for public display
+const getAdminInfo = async () => {
+  const admin = await User.findOne({
+    role: "ADMIN",
+    status: "ACTIVE",
+  }).select({
+    phoneNumber: 1,
+    email: 1,
+    location: 1,
+    profilePicture: 1,
+    userName: 1,
+    _id: 0, // Exclude ID for privacy
+  });
+
+  if (!admin) {
+    throw new ApiError(
+      httpStatus.NOT_FOUND,
+      "Admin information not available at this time"
+    );
+  }
+
+  return admin;
+};
+
 export const authService = {
   loginUser,
   getMyProfile,
@@ -359,4 +394,5 @@ export const authService = {
   resendOtp,
   verifyForgotPasswordOtp,
   resetPassword,
+  getAdminInfo,
 };
