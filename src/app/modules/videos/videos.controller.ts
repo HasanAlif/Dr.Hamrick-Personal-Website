@@ -6,6 +6,7 @@ import { Request, Response } from "express";
 import { googleCloudStorage } from "../../../helpers/googleCloudStorage";
 import ApiError from "../../../errors/ApiErrors";
 import { getVideoDuration } from "../../../helpers/videoHelper";
+import { VideoStatus } from "./videos.model";
 
 interface MulterRequest extends Request {
   file?: Express.Multer.File;
@@ -132,19 +133,23 @@ const createVideo = catchAsync(async (req: MulterRequest, res: Response) => {
       videoDuration = videoData.duration ? Number(videoData.duration) : 0;
     }
 
-    // Upload video to Google Cloud Storage with timeout handling
-    const uploadResult = await googleCloudStorage.uploadVideo(videoFile);
+    // Parallelize video and thumbnail uploads for better performance
+    const uploadPromises: Promise<any>[] = [
+      googleCloudStorage.uploadVideo(videoFile),
+    ];
 
-    // Upload thumbnail if provided
-    let thumbnailUrl = "";
     if (thumbnailFile) {
-      console.log(`📸 Uploading thumbnail: ${thumbnailFile.originalname}`);
-      const { fileUploader } = await import("../../../helpers/fileUploader");
-      const thumbnailUploadResult = await fileUploader.uploadToCloudinary(
-        thumbnailFile
+      uploadPromises.push(
+        import("../../../helpers/fileUploader").then(({ fileUploader }) =>
+          fileUploader.uploadToCloudinary(thumbnailFile)
+        )
       );
-      thumbnailUrl = thumbnailUploadResult.Location;
     }
+
+    // Wait for all uploads to complete concurrently
+    const uploadResults = await Promise.all(uploadPromises);
+    const uploadResult = uploadResults[0];
+    const thumbnailUrl = uploadResults[1]?.Location || "";
 
     // Prepare video data with proper type conversions
     const newVideoData = {
@@ -152,7 +157,10 @@ const createVideo = catchAsync(async (req: MulterRequest, res: Response) => {
       description: videoData.description?.trim() || "",
       transcription: videoData.transcription?.trim() || "",
       uploadDate: videoData.uploadDate,
-      status: videoData.status === true || videoData.status === "true",
+      status:
+        videoData.status === "unpublished"
+          ? VideoStatus.UNPUBLISHED
+          : VideoStatus.PUBLISHED, // Default to published
       duration: videoDuration, // Use extracted duration
       videoUrl: uploadResult.publicUrl,
       signedUrl: uploadResult.signedUrl, // Store signed URL for frontend
@@ -289,6 +297,7 @@ const updateVideo = catchAsync(async (req: MulterRequest, res: Response) => {
     fileSize?: number;
     contentType?: string;
     thumbnailUrl?: string;
+    duration?: number;
   } = {};
 
   // Upload new video if provided
@@ -317,12 +326,25 @@ const updateVideo = catchAsync(async (req: MulterRequest, res: Response) => {
       ).toFixed(2)}MB)`
     );
 
+    // Extract video duration from buffer
+    let videoDuration = 0;
+    try {
+      videoDuration = await getVideoDuration(videoFile.buffer);
+    } catch (durationError) {
+      console.warn("⚠️  Could not extract duration from new video");
+    }
+
     const uploadResult = await googleCloudStorage.uploadVideo(videoFile);
     fileData.videoUrl = uploadResult.publicUrl;
     fileData.signedUrl = uploadResult.signedUrl;
     fileData.fileName = uploadResult.fileName;
     fileData.fileSize = uploadResult.fileSize;
     fileData.contentType = uploadResult.contentType;
+
+    // Update duration if extracted successfully
+    if (videoDuration > 0) {
+      fileData.duration = videoDuration;
+    }
   }
 
   // Upload new thumbnail if provided
@@ -378,7 +400,9 @@ const updateVideo = catchAsync(async (req: MulterRequest, res: Response) => {
 
   if (updateData.status !== undefined) {
     parsedData.status =
-      updateData.status === true || updateData.status === "true";
+      updateData.status === "unpublished"
+        ? VideoStatus.UNPUBLISHED
+        : VideoStatus.PUBLISHED;
   }
 
   if (updateData.duration !== undefined && updateData.duration !== "") {

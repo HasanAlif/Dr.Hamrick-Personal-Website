@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { Video, IVideo } from "./videos.model";
+import { Video, IVideo, VideoStatus } from "./videos.model";
 import ApiError from "../../../errors/ApiErrors";
 import httpStatus from "http-status";
 import { IPaginationOptions } from "../../../interfaces/paginations";
@@ -17,34 +17,21 @@ interface IVideoFilter {
 }
 
 const createIntoDb = async (data: Partial<IVideo>) => {
-  const session = await mongoose.startSession();
-
-  try {
-    session.startTransaction();
-
-    // Convert uploadDate string to Date if needed
-    if (data.uploadDate && typeof data.uploadDate === "string") {
-      data.uploadDate = new Date(data.uploadDate);
-    }
-
-    // Sanitize HTML content if needed
-    if (data.description) {
-      data.description = data.description.trim();
-    }
-    if (data.transcription) {
-      data.transcription = data.transcription.trim();
-    }
-
-    const result = await Video.create([data], { session });
-
-    await session.commitTransaction();
-    return result[0];
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
+  // Convert uploadDate string to Date if needed
+  if (data.uploadDate && typeof data.uploadDate === "string") {
+    data.uploadDate = new Date(data.uploadDate);
   }
+
+  // Sanitize HTML content if needed
+  if (data.description) {
+    data.description = data.description.trim();
+  }
+  if (data.transcription) {
+    data.transcription = data.transcription.trim();
+  }
+
+  const result = await Video.create(data);
+  return result;
 };
 
 const getListFromDb = async (
@@ -68,11 +55,11 @@ const getListFromDb = async (
 
   // Filter by status
   if (publicOnly) {
-    // For public routes, only show available videos (status: true)
-    andConditions.push({ status: true });
+    // For public routes, only show published videos
+    andConditions.push({ status: VideoStatus.PUBLISHED });
   } else if (status !== undefined) {
     // For admin routes, allow filtering by status
-    andConditions.push({ status: status === "true" });
+    andConditions.push({ status: status });
   }
 
   // Filter by upload date range
@@ -114,20 +101,21 @@ const getListFromDb = async (
   const result = await query;
   const total = await Video.countDocuments(whereConditions);
 
-  // Refresh signed URLs for all videos
+  // Refresh signed URLs for all videos (return modified objects, don't save to DB)
   const videosWithFreshUrls = await Promise.all(
     result.map(async (video) => {
       try {
         const freshSignedUrl = await refreshSignedUrl(video.fileName);
-        video.signedUrl = freshSignedUrl;
-        await video.save();
-        return video;
+        // Update in-memory object only, no database write
+        const videoObj = video.toObject();
+        videoObj.signedUrl = freshSignedUrl;
+        return videoObj;
       } catch (error) {
         console.error(
           `Error refreshing signed URL for video ${video._id}:`,
           error
         );
-        return video; // Return video with old URL if refresh fails
+        return video.toObject(); // Return video with old URL if refresh fails
       }
     })
   );
@@ -154,8 +142,8 @@ const getByIdFromDb = async (
     throw new ApiError(httpStatus.NOT_FOUND, "Video not found");
   }
 
-  // For public routes, only return available videos (status: true)
-  if (publicOnly && !result.status) {
+  // For public routes, only return published videos
+  if (publicOnly && result.status !== VideoStatus.PUBLISHED) {
     throw new ApiError(httpStatus.NOT_FOUND, "Video not found");
   }
 
@@ -185,7 +173,7 @@ interface IVideoUpdateData {
   description?: string;
   transcription?: string;
   uploadDate?: string | Date;
-  status?: boolean;
+  status?: VideoStatus;
   duration?: number;
   videoUrl?: string;
   signedUrl?: string;

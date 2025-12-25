@@ -61,13 +61,11 @@ const createSchema = z.object({
     status: z
       .string()
       .optional()
-      .default("true")
-      .transform((val) => {
-        if (val === undefined || val === "" || val === "true" || val === "1")
-          return true;
-        if (val === "false" || val === "0") return false;
-        return Boolean(val);
-      }),
+      .default("published")
+      .refine(
+        (val) => val === "published" || val === "unpublished",
+        "Status must be either 'published' or 'unpublished'"
+      ),
     duration: z
       .string()
       .optional()
@@ -135,12 +133,11 @@ const updateSchema = z.object({
     status: z
       .string()
       .optional()
-      .transform((val) => {
-        if (val === undefined || val === "") return undefined;
-        if (val === "true" || val === "1") return true;
-        if (val === "false" || val === "0") return false;
-        return Boolean(val);
-      }),
+      .refine(
+        (val) =>
+          val === undefined || val === "published" || val === "unpublished",
+        "Status must be either 'published' or 'unpublished'"
+      ),
     duration: z
       .string()
       .optional()

@@ -1,5 +1,11 @@
 import mongoose, { Document, Schema } from "mongoose";
 
+// Video status enum
+export enum VideoStatus {
+  PUBLISHED = "published",
+  UNPUBLISHED = "unpublished",
+}
+
 export interface IVideo extends Document {
   _id: string;
   title: string;
@@ -13,7 +19,7 @@ export interface IVideo extends Document {
   contentType: string;
   duration?: number;
   uploadDate: Date;
-  status: boolean;
+  status: VideoStatus;
   views: number;
   isDeleted: boolean;
   isNotified: boolean;
@@ -76,8 +82,10 @@ const VideoSchema = new Schema<IVideo>(
       required: [true, "Upload date is required"],
     },
     status: {
-      type: Boolean,
-      default: true,
+      type: String,
+      enum: Object.values(VideoStatus),
+      default: VideoStatus.PUBLISHED,
+      index: true,
     },
     views: {
       type: Number,

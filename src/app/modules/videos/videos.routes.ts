@@ -148,8 +148,9 @@ router.get("/", videosController.getVideosList);
 
 router.get("/watch/:id", videosController.watchVideo);
 
+// RESTful routes with specific paths before generic /:id
 router.put(
-  "/update/:id",
+  "/:id",
   auth(UserRole.ADMIN),
   upload.fields([
     { name: "video", maxCount: 1 },
@@ -160,11 +161,7 @@ router.put(
   videosController.updateVideo
 );
 
-router.delete(
-  "/delete/:id",
-  auth(UserRole.ADMIN),
-  videosController.deleteVideo
-);
+router.delete("/:id", auth(UserRole.ADMIN), videosController.deleteVideo);
 
 router.get("/:id", videosController.getVideoById);
 
