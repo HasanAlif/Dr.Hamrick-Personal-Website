@@ -212,6 +212,18 @@ const deletePublications = catchAsync(async (req, res) => {
   });
 });
 
+const togglePinPublication = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const result = await publicationsService.togglePinInDb(id);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Pin status updated successfully",
+    data: result,
+  });
+});
+
 export const publicationsController = {
   createPublications,
   getPublicationsList,
@@ -219,4 +231,5 @@ export const publicationsController = {
   getPublicationsById,
   updatePublications,
   deletePublications,
+  togglePinPublication,
 };

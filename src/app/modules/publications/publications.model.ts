@@ -12,6 +12,7 @@ export interface IPublications extends Document {
   file?: string;
   fileName?: string;
   isNotified: boolean;
+  isPinned: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -61,6 +62,11 @@ const PublicationsSchema = new Schema<IPublications>(
       default: false,
       index: true,
     },
+    isPinned: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -70,6 +76,9 @@ const PublicationsSchema = new Schema<IPublications>(
 // Index for better performance
 PublicationsSchema.index({ title: 1 });
 PublicationsSchema.index({ status: 1 });
+
+// Compound index for efficient pinned sorting
+PublicationsSchema.index({ isPinned: -1, createdAt: -1 });
 
 export const Publications = mongoose.model<IPublications>(
   "Publications",

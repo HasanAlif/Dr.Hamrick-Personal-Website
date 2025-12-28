@@ -23,6 +23,7 @@ export interface IVideo extends Document {
   views: number;
   isDeleted: boolean;
   isNotified: boolean;
+  isPinned: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -100,6 +101,11 @@ const VideoSchema = new Schema<IVideo>(
       default: false,
       index: true,
     },
+    isPinned: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -118,6 +124,9 @@ VideoSchema.index({ title: "text", description: "text" });
 VideoSchema.index({ status: 1, isDeleted: 1 });
 VideoSchema.index({ uploadDate: -1 });
 VideoSchema.index({ createdAt: -1 });
+
+// Compound index for efficient pinned sorting
+VideoSchema.index({ isPinned: -1, createdAt: -1 });
 
 // Virtual for formatted file size
 VideoSchema.virtual("formattedFileSize").get(function () {

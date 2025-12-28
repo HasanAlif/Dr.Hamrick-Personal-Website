@@ -217,6 +217,18 @@ const deleteBlog = catchAsync(async (req, res) => {
   });
 });
 
+const togglePinBlog = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const result = await blogService.togglePinInDb(id);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Pin status updated successfully",
+    data: result,
+  });
+});
+
 export const blogController = {
   createBlog,
   getBlogList,
@@ -225,4 +237,5 @@ export const blogController = {
   getWebsiteBlogById,
   updateBlog,
   deleteBlog,
+  togglePinBlog,
 };

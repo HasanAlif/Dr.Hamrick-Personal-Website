@@ -59,6 +59,7 @@ export interface IPodcast extends Document {
 
   // Notification tracking
   isNotified: boolean;
+  isPinned: boolean;
 
   // Metadata
   createdAt: Date;
@@ -182,6 +183,11 @@ const PodcastSchema = new Schema<IPodcast>(
       default: false,
       index: true,
     },
+    isPinned: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -194,6 +200,9 @@ const PodcastSchema = new Schema<IPodcast>(
 PodcastSchema.index({ status: 1, date: -1 });
 PodcastSchema.index({ status: 1, createdAt: -1 });
 PodcastSchema.index({ admin: 1, status: 1 });
+
+// Compound index for efficient pinned sorting
+PodcastSchema.index({ isPinned: -1, createdAt: -1 });
 
 // Virtual for active listeners
 PodcastSchema.virtual("activeListeners").get(function () {

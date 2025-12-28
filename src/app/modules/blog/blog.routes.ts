@@ -27,6 +27,9 @@ router.put(
 
 router.delete("/delete/:id", auth(UserRole.ADMIN), blogController.deleteBlog);
 
+// Admin toggle pin status
+router.patch("/pin/:id", auth(UserRole.ADMIN), blogController.togglePinBlog);
+
 // Admin list - shows all blogs with all statuses
 router.get("/", blogController.getBlogList);
 

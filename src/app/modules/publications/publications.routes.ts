@@ -45,4 +45,10 @@ router.delete(
   publicationsController.deletePublications
 );
 
+router.patch(
+  "/pin/:id",
+  auth(UserRole.ADMIN),
+  publicationsController.togglePinPublication
+);
+
 export const publicationsRoutes = router;

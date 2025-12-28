@@ -165,6 +165,8 @@ router.put(
 
 router.delete("/:id", auth(UserRole.ADMIN), videosController.deleteVideo);
 
+router.patch("/pin/:id", auth(UserRole.ADMIN), videosController.togglePinVideo);
+
 router.get("/:id", videosController.getVideoById);
 
 export const videosRoutes = router;

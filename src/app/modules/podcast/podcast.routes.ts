@@ -39,4 +39,10 @@ router.post("/start/:id", auth(UserRole.ADMIN), podcastController.startPodcast);
 
 router.post("/end/:id", auth(UserRole.ADMIN), podcastController.endPodcast);
 
+router.patch(
+  "/pin/:id",
+  auth(UserRole.ADMIN),
+  podcastController.togglePinPodcast
+);
+
 export const podcastRoutes = router;

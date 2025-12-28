@@ -23,6 +23,7 @@ export interface IBlog extends Document {
   audioFormat?: string;
   audioDuration?: number;
   isNotified: boolean;
+  isPinned: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -87,6 +88,11 @@ const BlogSchema = new Schema<IBlog>(
       default: false,
       index: true,
     },
+    isPinned: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -101,5 +107,8 @@ BlogSchema.index({ title: 1 });
 
 // Index for audio file refresh queries
 BlogSchema.index({ audioFileName: 1 });
+
+// Compound index for efficient pinned sorting
+BlogSchema.index({ isPinned: -1, createdAt: -1 });
 
 export const Blog = mongoose.model<IBlog>("Blog", BlogSchema);

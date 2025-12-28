@@ -83,7 +83,9 @@ const getListFromDb = async (
   const whereConditions =
     andConditions.length > 0 ? { $and: andConditions } : {};
 
-  const sortConditions: { [key: string]: 1 | -1 } = {};
+  const sortConditions: { [key: string]: 1 | -1 } = {
+    isPinned: -1, // Always show pinned content first
+  };
   if (sortBy && sortOrder) {
     sortConditions[sortBy] = sortOrder === "asc" ? 1 : -1;
   } else {
@@ -275,6 +277,18 @@ const deleteItemFromDb = async (id: string) => {
   return result;
 };
 
+const togglePinInDb = async (id: string) => {
+  const blog = await Blog.findById(id);
+  if (!blog) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Blog not found");
+  }
+
+  blog.isPinned = !blog.isPinned;
+  await blog.save();
+
+  return blog;
+};
+
 export const blogService = {
   createIntoDb,
   getListFromDb,
@@ -282,4 +296,5 @@ export const blogService = {
   getByIdFromDb,
   updateIntoDb,
   deleteItemFromDb,
+  togglePinInDb,
 };

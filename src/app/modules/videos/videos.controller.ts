@@ -484,6 +484,18 @@ const deleteVideo = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const togglePinVideo = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const result = await videosService.togglePinInDb(id);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Pin status updated successfully",
+    data: result,
+  });
+});
+
 export const videosController = {
   createVideo,
   getVideosList,
@@ -492,4 +504,5 @@ export const videosController = {
   watchVideo,
   updateVideo,
   deleteVideo,
+  togglePinVideo,
 };

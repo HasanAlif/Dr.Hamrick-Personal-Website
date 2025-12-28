@@ -84,7 +84,9 @@ const getListFromDb = async (
   const { page, limit, skip, sortBy, sortOrder } =
     paginationHelper.calculatePagination(paginationOptions);
 
-  const sortConditions: { [key: string]: 1 | -1 } = {};
+  const sortConditions: { [key: string]: 1 | -1 } = {
+    isPinned: -1, // Always show pinned content first
+  };
   if (sortBy && sortOrder) {
     sortConditions[sortBy] = sortOrder === "asc" ? 1 : -1;
   } else {
@@ -296,10 +298,23 @@ const deleteItemFromDb = async (id: string) => {
   }
 };
 
+const togglePinInDb = async (id: string) => {
+  const video = await Video.findById(id);
+  if (!video) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Video not found");
+  }
+
+  video.isPinned = !video.isPinned;
+  await video.save();
+
+  return video;
+};
+
 export const videosService = {
   createIntoDb,
   getListFromDb,
   getByIdFromDb,
   updateIntoDb,
   deleteItemFromDb,
+  togglePinInDb,
 };

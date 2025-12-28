@@ -83,7 +83,9 @@ export const getAllPodcasts = catchAsync(
     const limitNum = limit ? parseInt(limit as string, 10) : 0;
 
     // Build sort conditions - supports title, date (createdAt), and duration
-    const sortConditions: { [key: string]: 1 | -1 } = {};
+    const sortConditions: { [key: string]: 1 | -1 } = {
+      isPinned: -1, // Always show pinned content first
+    };
     if (sortBy && sortOrder) {
       const sortField = sortBy as string;
       // Map user-friendly field names to model fields
@@ -525,7 +527,9 @@ export const getRecordedPodcasts = catchAsync(
     const limitNum = limit ? parseInt(limit as string, 10) : 0;
 
     // Build sort conditions - supports title, date (actualEnd), and duration
-    const sortConditions: { [key: string]: 1 | -1 } = {};
+    const sortConditions: { [key: string]: 1 | -1 } = {
+      isPinned: -1, // Always show pinned content first
+    };
     if (sortBy && sortOrder) {
       const sortField = sortBy as string;
       // Map user-friendly field names to model fields
@@ -630,6 +634,28 @@ export const getPodcastStatus = catchAsync(
         totalListeners: podcast.totalListeners,
         isLive: podcast.status === PodcastStatus.LIVE,
         recordingStatus,
+      },
+    });
+  }
+);
+
+export const togglePinPodcast = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+
+    const podcast = await Podcast.findById(id);
+    if (!podcast) {
+      throw new ApiError(httpStatus.NOT_FOUND, "Podcast not found");
+    }
+
+    podcast.isPinned = !podcast.isPinned;
+    await podcast.save();
+
+    res.status(httpStatus.OK).json({
+      status: "success",
+      message: "Pin status updated successfully",
+      data: {
+        podcast,
       },
     });
   }
