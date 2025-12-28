@@ -11,6 +11,7 @@ const router = express.Router();
 
 // Public routes
 router.get("/", podcastController.getAllPodcasts);
+router.get("/pinned", podcastController.getPinnedPodcasts);
 router.get("/live", podcastController.getLivePodcast);
 router.get("/recorded", podcastController.getRecordedPodcasts);
 router.get("/:id", podcastController.getPodcast);

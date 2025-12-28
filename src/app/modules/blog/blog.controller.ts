@@ -229,9 +229,20 @@ const togglePinBlog = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getPinnedBlogs = catchAsync(async (req: Request, res: Response) => {
+  const result = await blogService.getPinnedBlogsFromDb();
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Pinned blogs retrieved successfully",
+    data: result,
+  });
+});
+
 export const blogController = {
   createBlog,
   getBlogList,
+  getPinnedBlogs,
   getWebsiteBlogList,
   getBlogById,
   getWebsiteBlogById,

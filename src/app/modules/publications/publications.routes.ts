@@ -24,6 +24,8 @@ router.post(
 
 router.get("/", publicationsController.getPublicationsList);
 
+router.get("/pinned", publicationsController.getPinnedPublications);
+
 router.get(
   "/website-publications",
   publicationsController.getWebsitePublicationsList

@@ -33,6 +33,8 @@ router.patch("/pin/:id", auth(UserRole.ADMIN), blogController.togglePinBlog);
 // Admin list - shows all blogs with all statuses
 router.get("/", blogController.getBlogList);
 
+router.get("/pinned", blogController.getPinnedBlogs);
+
 // Public routes - only show published blogs
 router.get("/website-blogs", blogController.getWebsiteBlogList);
 

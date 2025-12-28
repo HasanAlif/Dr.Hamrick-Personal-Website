@@ -22,7 +22,7 @@ export const createPodcast = catchAsync(
     const { title } = req.body;
 
     // Handle cover image upload
-    let coverImagePath = "default-podcast-cover.jpg";
+    let coverImagePath = "";
     if (req.file) {
       const { fileUploader } = await import("../../../helpers/fileUploader");
       const uploadResult = await fileUploader.uploadToCloudinary(req.file);
@@ -83,9 +83,7 @@ export const getAllPodcasts = catchAsync(
     const limitNum = limit ? parseInt(limit as string, 10) : 0;
 
     // Build sort conditions - supports title, date (createdAt), and duration
-    const sortConditions: { [key: string]: 1 | -1 } = {
-      isPinned: -1, // Always show pinned content first
-    };
+    const sortConditions: { [key: string]: 1 | -1 } = {};
     if (sortBy && sortOrder) {
       const sortField = sortBy as string;
       // Map user-friendly field names to model fields
@@ -527,9 +525,7 @@ export const getRecordedPodcasts = catchAsync(
     const limitNum = limit ? parseInt(limit as string, 10) : 0;
 
     // Build sort conditions - supports title, date (actualEnd), and duration
-    const sortConditions: { [key: string]: 1 | -1 } = {
-      isPinned: -1, // Always show pinned content first
-    };
+    const sortConditions: { [key: string]: 1 | -1 } = {};
     if (sortBy && sortOrder) {
       const sortField = sortBy as string;
       // Map user-friendly field names to model fields
@@ -656,6 +652,24 @@ export const togglePinPodcast = catchAsync(
       message: "Pin status updated successfully",
       data: {
         podcast,
+      },
+    });
+  }
+);
+
+// Get pinned podcasts
+export const getPinnedPodcasts = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const podcasts = await Podcast.find({
+      isPinned: true,
+    }).sort({ createdAt: -1 });
+
+    res.status(httpStatus.OK).json({
+      status: "success",
+      message: "Pinned podcasts retrieved successfully",
+      results: podcasts.length,
+      data: {
+        podcasts,
       },
     });
   }

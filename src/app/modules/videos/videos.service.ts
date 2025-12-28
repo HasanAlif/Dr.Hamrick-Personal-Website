@@ -84,9 +84,7 @@ const getListFromDb = async (
   const { page, limit, skip, sortBy, sortOrder } =
     paginationHelper.calculatePagination(paginationOptions);
 
-  const sortConditions: { [key: string]: 1 | -1 } = {
-    isPinned: -1, // Always show pinned content first
-  };
+  const sortConditions: { [key: string]: 1 | -1 } = {};
   if (sortBy && sortOrder) {
     sortConditions[sortBy] = sortOrder === "asc" ? 1 : -1;
   } else {
@@ -310,6 +308,14 @@ const togglePinInDb = async (id: string) => {
   return video;
 };
 
+const getPinnedVideosFromDb = async () => {
+  const result = await Video.find({
+    isPinned: true,
+  }).sort({ createdAt: -1 });
+
+  return result;
+};
+
 export const videosService = {
   createIntoDb,
   getListFromDb,
@@ -317,4 +323,5 @@ export const videosService = {
   updateIntoDb,
   deleteItemFromDb,
   togglePinInDb,
+  getPinnedVideosFromDb,
 };

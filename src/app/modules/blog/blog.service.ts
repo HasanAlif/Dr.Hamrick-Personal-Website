@@ -83,9 +83,7 @@ const getListFromDb = async (
   const whereConditions =
     andConditions.length > 0 ? { $and: andConditions } : {};
 
-  const sortConditions: { [key: string]: 1 | -1 } = {
-    isPinned: -1, // Always show pinned content first
-  };
+  const sortConditions: { [key: string]: 1 | -1 } = {};
   if (sortBy && sortOrder) {
     sortConditions[sortBy] = sortOrder === "asc" ? 1 : -1;
   } else {
@@ -110,6 +108,14 @@ const getListFromDb = async (
     },
     data: result,
   };
+};
+
+const getPinnedBlogsFromDb = async () => {
+  const result = await Blog.find({
+    isPinned: true,
+  }).sort({ createdAt: -1 });
+
+  return result;
 };
 
 const getWebsiteBlogList = async (
@@ -292,6 +298,7 @@ const togglePinInDb = async (id: string) => {
 export const blogService = {
   createIntoDb,
   getListFromDb,
+  getPinnedBlogsFromDb,
   getWebsiteBlogList,
   getByIdFromDb,
   updateIntoDb,

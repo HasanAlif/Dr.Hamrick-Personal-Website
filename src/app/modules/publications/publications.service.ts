@@ -51,11 +51,9 @@ const getListFromDb = async (
   }
 
   // Execute the query with optional pagination
-  const sortConditions: { [key: string]: 1 | -1 } = {
-    isPinned: -1, // Always show pinned content first
+  let queryExec = Publications.find(query).sort({
     [sortBy || "createdAt"]: sortOrder === "asc" ? 1 : -1,
-  };
-  let queryExec = Publications.find(query).sort(sortConditions);
+  });
 
   if (limit > 0) {
     queryExec = queryExec.skip(skip).limit(limit);
@@ -101,9 +99,7 @@ const getWebsitePublicationsList = async (
   const whereConditions =
     andConditions.length > 0 ? { $and: andConditions } : {};
 
-  const sortConditions: { [key: string]: 1 | -1 } = {
-    isPinned: -1, // Always show pinned content first
-  };
+  const sortConditions: { [key: string]: 1 | -1 } = {};
   if (sortBy && sortOrder) {
     sortConditions[sortBy] = sortOrder === "asc" ? 1 : -1;
   } else {
@@ -237,6 +233,15 @@ const togglePinInDb = async (id: string) => {
   return publication;
 };
 
+const getPinnedPublicationsFromDb = async () => {
+  const result = await Publications.find({
+    isPinned: true,
+    status: true,
+  }).sort({ createdAt: -1 });
+
+  return result;
+};
+
 export const publicationsService = {
   createIntoDb,
   getListFromDb,
@@ -245,4 +250,5 @@ export const publicationsService = {
   updateIntoDb,
   deleteItemFromDb,
   togglePinInDb,
+  getPinnedPublicationsFromDb,
 };

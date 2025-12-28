@@ -224,6 +224,18 @@ const togglePinPublication = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getPinnedPublications = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await publicationsService.getPinnedPublicationsFromDb();
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Pinned publications retrieved successfully",
+      data: result,
+    });
+  }
+);
+
 export const publicationsController = {
   createPublications,
   getPublicationsList,
@@ -232,4 +244,5 @@ export const publicationsController = {
   updatePublications,
   deletePublications,
   togglePinPublication,
+  getPinnedPublications,
 };

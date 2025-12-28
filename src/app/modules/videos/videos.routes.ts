@@ -146,6 +146,8 @@ router.post(
 
 router.get("/", videosController.getVideosList);
 
+router.get("/pinned", videosController.getPinnedVideos);
+
 router.get("/admin", auth(UserRole.ADMIN), videosController.getAdminVideosList);
 
 router.get("/watch/:id", videosController.watchVideo);

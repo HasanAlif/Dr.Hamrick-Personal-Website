@@ -103,7 +103,7 @@ const PodcastSchema = new Schema<IPodcast>(
     },
     coverImage: {
       type: String,
-      default: "default-podcast-cover.jpg",
+      default: "",
     },
     transcription: {
       type: String,

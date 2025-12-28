@@ -496,6 +496,16 @@ const togglePinVideo = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getPinnedVideos = catchAsync(async (req: Request, res: Response) => {
+  const result = await videosService.getPinnedVideosFromDb();
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Pinned videos retrieved successfully",
+    data: result,
+  });
+});
+
 export const videosController = {
   createVideo,
   getVideosList,
@@ -505,4 +515,5 @@ export const videosController = {
   updateVideo,
   deleteVideo,
   togglePinVideo,
+  getPinnedVideos,
 };
