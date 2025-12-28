@@ -16,6 +16,7 @@ export const corsOptions = {
     "http://10.10.20.6:3000",
     "https://ihamrick-frontend.vercel.app",
     "https://www.ihamrick-frontend.vercel.app",
+    "http://192.168.1.128:5173",
     "https://pg-65.com",
     "https://www.pg-65.com",
     "https://dashboard.pg-65.com",
