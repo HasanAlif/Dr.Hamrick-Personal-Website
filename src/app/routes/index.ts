@@ -11,6 +11,8 @@ import { socialLinkRoutes } from "../modules/socialLink/socialLink.routes";
 import { rssFeedRoutes } from "../modules/RssFeedUsers/RssFeed.route";
 import { notificationRoutes } from "../modules/notification/notification.routes";
 import { websiteContentRoutes } from "../modules/websiteContent/websiteContent.routes";
+import { websiteImageRoutes } from "../modules/websiteContent/websiteImage.routes";
+import { motivationRoutes } from "../modules/websiteContent/motivation.routes";
 
 const router = express.Router();
 
@@ -62,6 +64,14 @@ const moduleRoutes = [
   {
     path: "/website-content",
     route: websiteContentRoutes,
+  },
+  {
+    path: "/website-images",
+    route: websiteImageRoutes,
+  },
+  {
+    path: "/motivations",
+    route: motivationRoutes,
   },
 ];
 
