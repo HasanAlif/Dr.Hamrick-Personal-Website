@@ -37,26 +37,6 @@ const createSchema = z.object({
           message:
             "Invalid date format. Use ISO 8601 format (e.g., 2024-01-15T10:00:00Z)",
         }
-      )
-      .refine(
-        (date) => {
-          const parsed = new Date(date);
-          const now = new Date();
-          const oneYearAgo = new Date(
-            now.getFullYear() - 1,
-            now.getMonth(),
-            now.getDate()
-          );
-          const oneYearFuture = new Date(
-            now.getFullYear() + 1,
-            now.getMonth(),
-            now.getDate()
-          );
-          return parsed >= oneYearAgo && parsed <= oneYearFuture;
-        },
-        {
-          message: "Upload date must be within one year from today",
-        }
       ),
     status: z
       .string()
@@ -107,26 +87,6 @@ const updateSchema = z.object({
         },
         {
           message: "Invalid date format. Use ISO 8601 format",
-        }
-      )
-      .refine(
-        (date) => {
-          const parsed = new Date(date);
-          const now = new Date();
-          const oneYearAgo = new Date(
-            now.getFullYear() - 1,
-            now.getMonth(),
-            now.getDate()
-          );
-          const oneYearFuture = new Date(
-            now.getFullYear() + 1,
-            now.getMonth(),
-            now.getDate()
-          );
-          return parsed >= oneYearAgo && parsed <= oneYearFuture;
-        },
-        {
-          message: "Upload date must be within one year from today",
         }
       )
       .optional(),

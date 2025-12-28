@@ -70,27 +70,6 @@ const createVideo = catchAsync(async (req: MulterRequest, res: Response) => {
     );
   }
 
-  // Validate uploadDate is within reasonable range (±1 year)
-  const now = new Date();
-  const oneYearAgo = new Date(
-    now.getFullYear() - 1,
-    now.getMonth(),
-    now.getDate()
-  );
-  const oneYearFuture = new Date(
-    now.getFullYear() + 1,
-    now.getMonth(),
-    now.getDate()
-  );
-  const uploadDate = new Date(videoData.uploadDate);
-
-  if (uploadDate < oneYearAgo || uploadDate > oneYearFuture) {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      "Upload date must be within one year from today"
-    );
-  }
-
   // Validate optional fields
   if (videoData.description && videoData.description.length > 5000) {
     throw new ApiError(
