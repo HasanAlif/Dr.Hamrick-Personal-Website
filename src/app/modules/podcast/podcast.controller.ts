@@ -662,6 +662,24 @@ export const getPinnedPodcasts = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const podcasts = await Podcast.find({
       isPinned: true,
+      status: PodcastStatus.ENDED,
+    }).sort({ createdAt: -1 });
+
+    res.status(httpStatus.OK).json({
+      status: "success",
+      message: "Pinned podcasts retrieved successfully",
+      results: podcasts.length,
+      data: {
+        podcasts,
+      },
+    });
+  }
+);
+
+export const getAdminPinnedPodcasts = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const podcasts = await Podcast.find({
+      isPinned: true,
     }).sort({ createdAt: -1 });
 
     res.status(httpStatus.OK).json({

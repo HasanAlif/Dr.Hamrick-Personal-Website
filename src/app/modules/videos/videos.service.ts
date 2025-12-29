@@ -311,6 +311,15 @@ const togglePinInDb = async (id: string) => {
 const getPinnedVideosFromDb = async () => {
   const result = await Video.find({
     isPinned: true,
+    status: VideoStatus.PUBLISHED,
+  }).sort({ createdAt: -1 });
+
+  return result;
+};
+
+const getAdminPinnedVideosFromDb = async () => {
+  const result = await Video.find({
+    isPinned: true,
   }).sort({ createdAt: -1 });
 
   return result;
@@ -324,4 +333,5 @@ export const videosService = {
   deleteItemFromDb,
   togglePinInDb,
   getPinnedVideosFromDb,
+  getAdminPinnedVideosFromDb,
 };

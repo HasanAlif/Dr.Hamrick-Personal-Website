@@ -113,6 +113,15 @@ const getListFromDb = async (
 const getPinnedBlogsFromDb = async () => {
   const result = await Blog.find({
     isPinned: true,
+    status: BlogStatus.PUBLISHED,
+  }).sort({ createdAt: -1 });
+
+  return result;
+};
+
+const getAdminPinnedBlogsFromDb = async () => {
+  const result = await Blog.find({
+    isPinned: true,
   }).sort({ createdAt: -1 });
 
   return result;
@@ -299,6 +308,7 @@ export const blogService = {
   createIntoDb,
   getListFromDb,
   getPinnedBlogsFromDb,
+  getAdminPinnedBlogsFromDb,
   getWebsiteBlogList,
   getByIdFromDb,
   updateIntoDb,

@@ -236,6 +236,18 @@ const getPinnedPublications = catchAsync(
   }
 );
 
+const getAdminPinnedPublications = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await publicationsService.getAdminPinnedPublicationsFromDb();
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Admin pinned publications retrieved successfully",
+      data: result,
+    });
+  }
+);
+
 export const publicationsController = {
   createPublications,
   getPublicationsList,
@@ -245,4 +257,5 @@ export const publicationsController = {
   deletePublications,
   togglePinPublication,
   getPinnedPublications,
+  getAdminPinnedPublications,
 };

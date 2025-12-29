@@ -485,6 +485,16 @@ const getPinnedVideos = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getAdminPinnedVideos = catchAsync(async (req: Request, res: Response) => {
+  const result = await videosService.getAdminPinnedVideosFromDb();
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Admin pinned videos retrieved successfully",
+    data: result,
+  });
+});
+
 export const videosController = {
   createVideo,
   getVideosList,
@@ -495,4 +505,5 @@ export const videosController = {
   deleteVideo,
   togglePinVideo,
   getPinnedVideos,
+  getAdminPinnedVideos,
 };

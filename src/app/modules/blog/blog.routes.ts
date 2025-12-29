@@ -35,6 +35,12 @@ router.get("/", blogController.getBlogList);
 
 router.get("/pinned", blogController.getPinnedBlogs);
 
+router.get(
+  "/admin-pinned",
+  auth(UserRole.ADMIN),
+  blogController.getAdminPinnedBlogs
+);
+
 // Public routes - only show published blogs
 router.get("/website-blogs", blogController.getWebsiteBlogList);
 

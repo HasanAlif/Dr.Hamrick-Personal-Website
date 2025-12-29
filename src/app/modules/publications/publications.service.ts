@@ -242,6 +242,14 @@ const getPinnedPublicationsFromDb = async () => {
   return result;
 };
 
+const getAdminPinnedPublicationsFromDb = async () => {
+  const result = await Publications.find({
+    isPinned: true,
+  }).sort({ createdAt: -1 });
+
+  return result;
+};
+
 export const publicationsService = {
   createIntoDb,
   getListFromDb,
@@ -251,4 +259,5 @@ export const publicationsService = {
   deleteItemFromDb,
   togglePinInDb,
   getPinnedPublicationsFromDb,
+  getAdminPinnedPublicationsFromDb,
 };

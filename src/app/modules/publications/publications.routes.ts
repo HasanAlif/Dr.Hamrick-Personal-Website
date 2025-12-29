@@ -27,6 +27,12 @@ router.get("/", publicationsController.getPublicationsList);
 router.get("/pinned", publicationsController.getPinnedPublications);
 
 router.get(
+  "/admin-pinned",
+  auth(UserRole.ADMIN),
+  publicationsController.getAdminPinnedPublications
+);
+
+router.get(
   "/website-publications",
   publicationsController.getWebsitePublicationsList
 );

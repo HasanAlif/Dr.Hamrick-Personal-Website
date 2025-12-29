@@ -239,10 +239,21 @@ const getPinnedBlogs = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getAdminPinnedBlogs = catchAsync(async (req: Request, res: Response) => {
+  const result = await blogService.getAdminPinnedBlogsFromDb();
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Admin pinned blogs retrieved successfully",
+    data: result,
+  });
+});
+
 export const blogController = {
   createBlog,
   getBlogList,
   getPinnedBlogs,
+  getAdminPinnedBlogs,
   getWebsiteBlogList,
   getBlogById,
   getWebsiteBlogById,
