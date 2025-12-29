@@ -405,7 +405,7 @@ export const deleteBlogAudio = async (fileName: string): Promise<boolean> => {
 
 // Check if GCS is properly configured and accessible
 // Uses getFiles instead of bucket.exists() to avoid needing storage.buckets.get permission
-export const testConnection = async (): Promise<boolean> => {
+export const testConnection = async (): Promise<void> => {
   try {
     await bucket.getFiles({
       prefix: config.gcs.paths.video,
@@ -413,7 +413,6 @@ export const testConnection = async (): Promise<boolean> => {
       autoPaginate: false,
     });
     console.log("GCS connection successful✅");
-    return true;
   } catch (error: any) {
     if (error.code === 403) {
       console.error("GCS Permission Error:", error.message);
@@ -425,7 +424,7 @@ export const testConnection = async (): Promise<boolean> => {
     } else {
       console.error("GCS connection failed:", error.message);
     }
-    return false;
+    throw error; // Throw to indicate failure
   }
 };
 

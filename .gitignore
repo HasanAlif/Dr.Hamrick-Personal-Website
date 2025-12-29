@@ -3,3 +3,4 @@ dist
 .env
 broadcaster.html
 listener.html
+google-cloud-key.json
