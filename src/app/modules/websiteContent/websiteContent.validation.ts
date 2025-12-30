@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ContentType } from "./websiteContent.model";
 
 const updateSchema = z.object({
   body: z.object({
@@ -8,6 +9,22 @@ const updateSchema = z.object({
       })
       .min(1, "Content cannot be empty")
       .trim(),
+  }),
+  params: z.object({
+    type: z.enum(
+      [
+        ContentType.ABOUT_US,
+        ContentType.PRIVACY_POLICY,
+        ContentType.MOTIVATION,
+        ContentType.DISCLAIMER,
+        ContentType.FOOTTER_TEXT_1,
+        ContentType.FOOTTER_TEXT_2,
+      ],
+      {
+        required_error: "Content type is required",
+        invalid_type_error: "Invalid content type",
+      }
+    ),
   }),
 });
 
