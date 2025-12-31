@@ -52,7 +52,7 @@ const getListFromDb = async (
 
   // Execute the query with optional pagination
   let queryExec = Publications.find(query).sort({
-    [sortBy || "createdAt"]: sortOrder === "asc" ? 1 : -1,
+    [sortBy || "publicationDate"]: sortOrder === "asc" ? 1 : -1,
   });
 
   if (limit > 0) {
@@ -103,7 +103,7 @@ const getWebsitePublicationsList = async (
   if (sortBy && sortOrder) {
     sortConditions[sortBy] = sortOrder === "asc" ? 1 : -1;
   } else {
-    sortConditions.createdAt = -1;
+    sortConditions.publicationDate = -1;
   }
 
   // Apply pagination only if limit is provided

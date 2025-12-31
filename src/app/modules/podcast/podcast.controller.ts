@@ -89,14 +89,14 @@ export const getAllPodcasts = catchAsync(
       // Map user-friendly field names to model fields
       const fieldMap: { [key: string]: string } = {
         title: "title",
-        date: "createdAt",
+        date: "date",
         createdAt: "createdAt",
         duration: "duration",
       };
       const mappedField = fieldMap[sortField] || sortField;
       sortConditions[mappedField] = sortOrder === "asc" ? 1 : -1;
     } else {
-      sortConditions.createdAt = -1; // Default: newest first
+      sortConditions.date = -1; // Default: newest first
     }
 
     let query = Podcast.find(filter)

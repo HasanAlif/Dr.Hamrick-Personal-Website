@@ -87,7 +87,7 @@ const getListFromDb = async (
   if (sortBy && sortOrder) {
     sortConditions[sortBy] = sortOrder === "asc" ? 1 : -1;
   } else {
-    sortConditions.createdAt = -1;
+    sortConditions.uploadDate = -1;
   }
 
   let query = Blog.find(whereConditions).sort(sortConditions);
@@ -156,7 +156,7 @@ const getWebsiteBlogList = async (
   if (sortBy && sortOrder) {
     sortConditions[sortBy] = sortOrder === "asc" ? 1 : -1;
   } else {
-    sortConditions.createdAt = -1;
+    sortConditions.uploadDate = -1;
   }
 
   let query = Blog.find(whereConditions).sort(sortConditions);
