@@ -97,6 +97,7 @@ export const getAllPodcasts = catchAsync(
       sortConditions[mappedField] = sortOrder === "asc" ? 1 : -1;
     } else {
       sortConditions.date = -1; // Default: newest first
+      sortConditions.createdAt = -1;
     }
 
     let query = Podcast.find(filter)
