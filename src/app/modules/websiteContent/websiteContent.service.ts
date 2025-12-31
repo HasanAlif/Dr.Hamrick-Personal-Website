@@ -11,6 +11,7 @@ const getContentTypeName = (type: ContentType): string => {
     [ContentType.DISCLAIMER]: "Disclaimer",
     [ContentType.FOOTTER_TEXT_1]: "Footer Text 1",
     [ContentType.FOOTTER_TEXT_2]: "Footer Text 2",
+    [ContentType.CONTACT_TEXT]: "Contact Text",
   };
   return typeNames[type] || type;
 };

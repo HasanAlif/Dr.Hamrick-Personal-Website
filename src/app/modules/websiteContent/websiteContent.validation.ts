@@ -19,6 +19,7 @@ const updateSchema = z.object({
         ContentType.DISCLAIMER,
         ContentType.FOOTTER_TEXT_1,
         ContentType.FOOTTER_TEXT_2,
+        ContentType.CONTACT_TEXT,
       ],
       {
         required_error: "Content type is required",

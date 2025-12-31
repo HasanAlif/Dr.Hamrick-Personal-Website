@@ -7,6 +7,7 @@ export enum ContentType {
   DISCLAIMER = "disclaimer",
   FOOTTER_TEXT_1 = "footer-text-1",
   FOOTTER_TEXT_2 = "footer-text-2",
+  CONTACT_TEXT = "contact-text",
 }
 
 export interface IWebsiteContent extends Document {
