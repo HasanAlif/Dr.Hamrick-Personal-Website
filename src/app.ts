@@ -13,6 +13,7 @@ export const corsOptions = {
     "http://localhost:3000",
     "http://localhost:3001",
     "http://10.10.20.6:5173",
+    "http://192.168.0.101:5173", 
     "http://10.10.20.6:3000",
     "https://ihamrick-frontend.vercel.app",
     "https://www.ihamrick-frontend.vercel.app",
