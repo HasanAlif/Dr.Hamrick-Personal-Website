@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { BlogStatus } from "./blog.model";
+import { isInFuture } from "../../../helpers/dateHelpers";
 
 const createSchema = z.object({
   body: z
@@ -13,7 +14,8 @@ const createSchema = z.object({
       uploadDate: z
         .string()
         .refine((val) => !isNaN(Date.parse(val)), {
-          message: "Invalid date format. Use ISO 8601 format",
+          message:
+            "Invalid date format. Use ISO 8601 format (e.g., 2024-01-15T14:00:00Z)",
         })
         .optional(),
       status: z
@@ -27,7 +29,8 @@ const createSchema = z.object({
       scheduledAt: z
         .string()
         .refine((val) => !val || !isNaN(Date.parse(val)), {
-          message: "Invalid date format. Use ISO 8601 format",
+          message:
+            "Invalid date format. Use ISO 8601 format (e.g., 2024-01-15T14:00:00Z)",
         })
         .optional(),
       coverImage: z.string().optional(),
@@ -41,16 +44,15 @@ const createSchema = z.object({
     })
     .refine(
       (data) => {
-        // If status is scheduled, scheduledAt must be provided and in the future
+        // If status is scheduled, scheduledAt must be provided and in the future (UTC comparison)
         if (data.status === BlogStatus.SCHEDULED) {
           if (!data.scheduledAt) return false;
-          const scheduledDate = new Date(data.scheduledAt);
-          return scheduledDate > new Date();
+          return isInFuture(data.scheduledAt);
         }
         return true;
       },
       {
-        message: "Scheduled blogs require a future date and time",
+        message: "Scheduled blogs require a future date and time (UTC)",
         path: ["scheduledAt"],
       }
     ),
@@ -64,7 +66,8 @@ const updateSchema = z.object({
       uploadDate: z
         .string()
         .refine((val) => !isNaN(Date.parse(val)), {
-          message: "Invalid date format. Use ISO 8601 format",
+          message:
+            "Invalid date format. Use ISO 8601 format (e.g., 2024-01-15T14:00:00Z)",
         })
         .optional(),
       status: z
@@ -77,7 +80,8 @@ const updateSchema = z.object({
       scheduledAt: z
         .string()
         .refine((val) => !val || !isNaN(Date.parse(val)), {
-          message: "Invalid date format. Use ISO 8601 format",
+          message:
+            "Invalid date format. Use ISO 8601 format (e.g., 2024-01-15T14:00:00Z)",
         })
         .optional()
         .nullable(),
@@ -92,16 +96,15 @@ const updateSchema = z.object({
     })
     .refine(
       (data) => {
-        // If status is being changed to scheduled, scheduledAt must be provided and in the future
+        // If status is being changed to scheduled, scheduledAt must be provided and in the future (UTC comparison)
         if (data.status === BlogStatus.SCHEDULED) {
           if (!data.scheduledAt) return false;
-          const scheduledDate = new Date(data.scheduledAt);
-          return scheduledDate > new Date();
+          return isInFuture(data.scheduledAt);
         }
         return true;
       },
       {
-        message: "Scheduled blogs require a future date and time",
+        message: "Scheduled blogs require a future date and time (UTC)",
         path: ["scheduledAt"],
       }
     ),

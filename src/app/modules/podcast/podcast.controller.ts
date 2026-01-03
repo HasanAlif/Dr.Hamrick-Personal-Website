@@ -10,6 +10,7 @@ import {
   generateRecordedStreamConfig,
 } from "../../../helpers/streamingConfig";
 import { v4 as uuidv4 } from "uuid";
+import { parseToUTC, nowUTC } from "../../../helpers/dateHelpers";
 
 interface AuthRequest extends Request {
   user: any;
@@ -34,7 +35,7 @@ export const createPodcast = catchAsync(
       coverImage: coverImagePath,
       description: req.body.description,
       transcription: req.body.transcription,
-      date: req.body.date ? new Date(req.body.date) : undefined,
+      date: req.body.date ? parseToUTC(req.body.date) : undefined,
       admin: req.user.id,
       status: PodcastStatus.SCHEDULED,
     });
@@ -239,7 +240,7 @@ export const updatePodcast = catchAsync(
     if (title) podcast.title = title;
     if (description !== undefined) podcast.description = description;
     if (transcription !== undefined) podcast.transcription = transcription;
-    if (date) podcast.date = new Date(date);
+    if (date) podcast.date = parseToUTC(date);
     if (status && Object.values(PodcastStatus).includes(status)) {
       podcast.status = status;
     }
@@ -345,7 +346,7 @@ export const startPodcast = catchAsync(
 
     // Update podcast status
     podcast.status = PodcastStatus.LIVE;
-    podcast.actualStart = new Date();
+    podcast.actualStart = nowUTC();
     podcast.liveSessionId = sessionId;
     await podcast.save();
 
@@ -423,7 +424,7 @@ export const endPodcast = catchAsync(
 
     // Update status immediately
     podcast.status = PodcastStatus.ENDED;
-    podcast.actualEnd = new Date();
+    podcast.actualEnd = nowUTC();
 
     if (podcast.actualStart) {
       podcast.duration = Math.round(

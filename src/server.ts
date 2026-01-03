@@ -1,3 +1,6 @@
+// Force server to run in UTC timezone - MUST be before any imports
+process.env.TZ = "UTC";
+
 import { Server } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import config from "./config";

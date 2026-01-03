@@ -5,9 +5,7 @@ import { Blog } from "../app/modules/blog/blog.model";
 import { refreshSignedUrl } from "../helpers/googleCloudStorage";
 import audioStreamService from "../app/modules/podcast/audioStreamService";
 
-/**
- * Refresh signed URLs for all videos in the database
- */
+// Refresh signed URLs for all videos in the database
 const refreshVideoSignedUrls = async (): Promise<void> => {
   try {
     console.log("🔄 Starting video signed URL refresh job...");
@@ -43,9 +41,7 @@ const refreshVideoSignedUrls = async (): Promise<void> => {
   }
 };
 
-/**
- * Refresh signed URLs for all podcast recordings in the database
- */
+// Refresh signed URLs for all podcast recordings in the database
 const refreshPodcastSignedUrls = async (): Promise<void> => {
   try {
     console.log("🔄 Starting podcast signed URL refresh job...");
@@ -82,9 +78,7 @@ const refreshPodcastSignedUrls = async (): Promise<void> => {
   }
 };
 
-/**
- * Refresh signed URLs for all blog audio files in the database
- */
+// Refresh signed URLs for all blog audio files in the database
 const refreshBlogAudioSignedUrls = async (): Promise<void> => {
   try {
     console.log("🔄 Starting blog audio signed URL refresh job...");
@@ -122,9 +116,7 @@ const refreshBlogAudioSignedUrls = async (): Promise<void> => {
   }
 };
 
-/**
- * Refresh all signed URLs (videos + podcasts + blogs)
- */
+// Refresh all signed URLs (videos + podcasts + blogs)
 const refreshAllSignedUrls = async (): Promise<void> => {
   console.log("📅 Running scheduled signed URL refresh job...");
   const startTime = Date.now();
@@ -139,19 +131,18 @@ const refreshAllSignedUrls = async (): Promise<void> => {
   console.log(`⏱️  Signed URL refresh job completed in ${duration}s`);
 };
 
-/**
- * Schedule the cron job to run every 6 days at 2 AM
- * This ensures signed URLs are refreshed before they expire (7-day validity)
- * Cron pattern: Every 6 days at 2:00 AM
- */
+// Schedule the cron job to run every 6 days at 2 AM UTC
 export const startSignedUrlRefreshJob = (): void => {
-  // Run every 6 days at 2 AM
-  cron.schedule("0 2 */6 * *", async () => {
-    await refreshAllSignedUrls();
-  });
+  cron.schedule(
+    "0 2 */6 * *",
+    async () => {
+      await refreshAllSignedUrls();
+    },
+    { timezone: "UTC" }
+  );
 
   console.log(
-    "✅ Signed URL refresh job scheduled (runs every 6 days at 2 AM)"
+    "✅ Signed URL refresh job scheduled (runs every 6 days at 2 AM UTC)"
   );
 
   // Optional: Run immediately on startup for testing

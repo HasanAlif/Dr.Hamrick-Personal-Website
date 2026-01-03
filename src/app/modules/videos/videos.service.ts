@@ -8,6 +8,12 @@ import {
   deleteFromGCS,
   refreshSignedUrl,
 } from "../../../helpers/googleCloudStorage";
+import {
+  parseToUTC,
+  nowUTC,
+  startOfDayUTC,
+  endOfDayUTC,
+} from "../../../helpers/dateHelpers";
 
 interface IVideoFilter {
   searchTerm?: string;
@@ -17,9 +23,9 @@ interface IVideoFilter {
 }
 
 const createIntoDb = async (data: Partial<IVideo>) => {
-  // Convert uploadDate string to Date if needed
+  // Convert uploadDate string to UTC Date
   if (data.uploadDate && typeof data.uploadDate === "string") {
-    data.uploadDate = new Date(data.uploadDate);
+    data.uploadDate = parseToUTC(data.uploadDate);
   }
 
   // Sanitize HTML content if needed
@@ -62,14 +68,14 @@ const getListFromDb = async (
     andConditions.push({ status: status });
   }
 
-  // Filter by upload date range
+  // Filter by upload date range (UTC)
   if (uploadDateFrom || uploadDateTo) {
     const dateFilter: any = {};
     if (uploadDateFrom) {
-      dateFilter.$gte = new Date(uploadDateFrom);
+      dateFilter.$gte = startOfDayUTC(uploadDateFrom);
     }
     if (uploadDateTo) {
-      dateFilter.$lte = new Date(uploadDateTo);
+      dateFilter.$lte = endOfDayUTC(uploadDateTo);
     }
     andConditions.push({ uploadDate: dateFilter });
   }
@@ -207,11 +213,11 @@ const updateIntoDb = async (id: string, data: IVideoUpdateData) => {
   if (data.status !== undefined) updateData.status = data.status;
   if (data.duration !== undefined) updateData.duration = data.duration;
 
-  // Convert uploadDate string to Date if needed
+  // Convert uploadDate string to UTC Date
   if (data.uploadDate !== undefined) {
     updateData.uploadDate =
       typeof data.uploadDate === "string"
-        ? new Date(data.uploadDate)
+        ? parseToUTC(data.uploadDate)
         : data.uploadDate;
   }
 
@@ -227,7 +233,7 @@ const updateIntoDb = async (id: string, data: IVideoUpdateData) => {
   // Update the video in database
   const result = await Video.findByIdAndUpdate(
     id,
-    { ...updateData, updatedAt: new Date() },
+    { ...updateData, updatedAt: nowUTC() },
     { new: true, runValidators: true }
   );
 

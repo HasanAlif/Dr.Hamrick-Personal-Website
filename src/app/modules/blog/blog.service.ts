@@ -4,6 +4,7 @@ import ApiError from "../../../errors/ApiErrors";
 import httpStatus from "http-status";
 import { paginationHelper } from "../../../helpers/paginationHelper";
 import { IPaginationOptions } from "../../../interfaces/paginations";
+import { parseToUTC, nowUTC } from "../../../helpers/dateHelpers";
 
 interface IBlogCreateData {
   title: string;
@@ -38,16 +39,16 @@ const createIntoDb = async (blogData: IBlogCreateData) => {
 
   // Handle scheduled blogs
   if (blogData.status === BlogStatus.SCHEDULED && blogData.scheduledAt) {
-    sanitizedBlogData.scheduledAt = new Date(blogData.scheduledAt);
+    sanitizedBlogData.scheduledAt = parseToUTC(blogData.scheduledAt);
     // If uploadDate is not provided, set it to scheduledAt
     sanitizedBlogData.uploadDate = blogData.uploadDate
-      ? new Date(blogData.uploadDate)
+      ? parseToUTC(blogData.uploadDate)
       : sanitizedBlogData.scheduledAt;
   } else {
-    // For non-scheduled blogs, use provided uploadDate or current date
+    // For non-scheduled blogs, use provided uploadDate or current UTC time
     sanitizedBlogData.uploadDate = blogData.uploadDate
-      ? new Date(blogData.uploadDate)
-      : new Date();
+      ? parseToUTC(blogData.uploadDate)
+      : nowUTC();
   }
 
   const result = await Blog.create(sanitizedBlogData);
@@ -218,12 +219,12 @@ const updateIntoDb = async (id: string, data: IBlogUpdateData) => {
   }
 
   // Build update object
-  const updateData: any = { updatedAt: new Date() };
+  const updateData: any = { updatedAt: nowUTC() };
 
   if (data.title !== undefined) updateData.title = data.title;
   if (data.description !== undefined) updateData.description = data.description;
   if (data.uploadDate !== undefined)
-    updateData.uploadDate = new Date(data.uploadDate);
+    updateData.uploadDate = parseToUTC(data.uploadDate);
   if (data.coverImage !== undefined) updateData.coverImage = data.coverImage;
 
   // Audio fields
@@ -243,7 +244,7 @@ const updateIntoDb = async (id: string, data: IBlogUpdateData) => {
 
     // If changing to scheduled, set scheduledAt
     if (data.status === BlogStatus.SCHEDULED && data.scheduledAt) {
-      updateData.scheduledAt = new Date(data.scheduledAt);
+      updateData.scheduledAt = parseToUTC(data.scheduledAt);
     }
 
     // If changing to published or unpublished, clear scheduledAt
@@ -256,7 +257,7 @@ const updateIntoDb = async (id: string, data: IBlogUpdateData) => {
   ) {
     // Allow updating scheduledAt only if blog is still scheduled
     updateData.scheduledAt = data.scheduledAt
-      ? new Date(data.scheduledAt)
+      ? parseToUTC(data.scheduledAt)
       : null;
   }
 

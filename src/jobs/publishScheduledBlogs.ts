@@ -1,13 +1,15 @@
 import cron from "node-cron";
 import { Blog, BlogStatus } from "../app/modules/blog/blog.model";
+import { nowUTC } from "../helpers/dateHelpers";
 
 // Publish all scheduled blogs whose scheduledAt time has passed
 // This job runs every hour and checks for blogs that need to be published
+// All comparisons are done in UTC
 const publishScheduledBlogs = async (): Promise<void> => {
   try {
-    const now = new Date();
+    const now = nowUTC();
 
-    // Find all scheduled blogs where scheduledAt <= current time
+    // Find all scheduled blogs where scheduledAt <= current UTC time
     const blogsToPublish = await Blog.find({
       status: BlogStatus.SCHEDULED,
       scheduledAt: { $lte: now },
@@ -17,9 +19,7 @@ const publishScheduledBlogs = async (): Promise<void> => {
       return; // No blogs to publish, exit silently
     }
 
-    console.log(
-      `Found ${blogsToPublish.length} scheduled blog(s) to publish`
-    );
+    console.log(`Found ${blogsToPublish.length} scheduled blog(s) to publish`);
 
     let successCount = 0;
     let errorCount = 0;
@@ -30,7 +30,7 @@ const publishScheduledBlogs = async (): Promise<void> => {
         await Blog.findByIdAndUpdate(blog._id, {
           status: BlogStatus.PUBLISHED,
           scheduledAt: null,
-          updatedAt: new Date(),
+          updatedAt: nowUTC(),
         });
         successCount++;
         console.log(`Published blog: "${blog.title}" (ID: ${blog._id})`);
@@ -50,12 +50,18 @@ const publishScheduledBlogs = async (): Promise<void> => {
 
 // Start the CRON job for publishing scheduled blogs
 export const startScheduledBlogPublisher = (): void => {
-  // Run every hour at minute 0
-  cron.schedule("0 * * * *", async () => {
-    await publishScheduledBlogs();
-  });
+  // Run every hour at minute 0, explicitly in UTC timezone
+  cron.schedule(
+    "0 * * * *",
+    async () => {
+      await publishScheduledBlogs();
+    },
+    { timezone: "UTC" }
+  );
 
-  console.log("✅ Scheduled blog publisher job started (runs every hour)");
+  console.log(
+    "✅ Scheduled blog publisher job started (runs every hour in UTC)"
+  );
 };
 
 // Export for manual execution or testing

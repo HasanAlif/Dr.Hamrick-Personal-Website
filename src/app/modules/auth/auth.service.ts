@@ -6,6 +6,7 @@ import ApiError from "../../../errors/ApiErrors";
 import { jwtHelpers } from "../../../helpers/jwtHelpers";
 import emailSender from "../../../shared/emailSender";
 import { User } from "../../models";
+import { createExpiry, isExpired } from "../../../helpers/dateHelpers";
 
 // user login
 const loginUser = async (payload: {
@@ -199,7 +200,7 @@ const forgotPassword = async (payload: { email: string }) => {
   }
 
   const otp = crypto.randomInt(100000, 999999).toString();
-  const otpExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+  const otpExpiry = createExpiry(15); // 15 minutes from now (UTC)
 
   await User.findByIdAndUpdate(userData._id, {
     resetPasswordOtp: otp,
@@ -252,7 +253,7 @@ const resendOtp = async (email: string) => {
   }
 
   const otp = crypto.randomInt(100000, 999999).toString();
-  const otpExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+  const otpExpiry = createExpiry(15); // 15 minutes from now (UTC)
 
   await User.findByIdAndUpdate(userData._id, {
     resetPasswordOtp: otp,
@@ -310,7 +311,7 @@ const verifyForgotPasswordOtp = async (payload: {
   if (
     user.resetPasswordOtp !== payload.otp ||
     !user.resetPasswordOtpExpiry ||
-    user.resetPasswordOtpExpiry < new Date()
+    isExpired(user.resetPasswordOtpExpiry)
   ) {
     throw new ApiError(httpStatus.BAD_REQUEST, "Invalid or expired OTP!");
   }
@@ -342,7 +343,7 @@ const resetPassword = async (
   if (
     user.resetPasswordOtp !== otp ||
     !user.resetPasswordOtpExpiry ||
-    user.resetPasswordOtpExpiry < new Date()
+    isExpired(user.resetPasswordOtpExpiry)
   ) {
     throw new ApiError(httpStatus.BAD_REQUEST, "Invalid or expired OTP!");
   }
