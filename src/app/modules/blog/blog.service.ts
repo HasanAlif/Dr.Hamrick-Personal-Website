@@ -92,7 +92,9 @@ const getListFromDb = async (
     sortConditions.createdAt = -1;
   }
 
-  let query = Blog.find(whereConditions).sort(sortConditions);
+  let query = Blog.find(whereConditions)
+    .collation({ locale: "en", strength: 2 }) // Case-insensitive sorting
+    .sort(sortConditions);
 
   if (limit > 0) {
     query = query.skip(skip).limit(limit);
@@ -162,7 +164,9 @@ const getWebsiteBlogList = async (
     sortConditions.createdAt = -1;
   }
 
-  let query = Blog.find(whereConditions).sort(sortConditions);
+  let query = Blog.find(whereConditions)
+    .collation({ locale: "en", strength: 2 }) // Case-insensitive sorting
+    .sort(sortConditions);
 
   if (limit > 0) {
     query = query.skip(skip).limit(limit);

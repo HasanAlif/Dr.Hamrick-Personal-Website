@@ -24,7 +24,9 @@ const updatePodcastSchema = z.object({
       .optional(),
     transcription: z.string().optional(),
     date: z.string().optional(),
-    status: z.enum(["scheduled", "live", "ended", "cancelled"]).optional(),
+    status: z
+      .enum(["scheduled", "live", "published", "unpublished", "cancelled"])
+      .optional(),
   }),
 });
 

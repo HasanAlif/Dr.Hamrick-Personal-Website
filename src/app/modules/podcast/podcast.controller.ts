@@ -35,7 +35,10 @@ export const createPodcast = catchAsync(
       coverImage: coverImagePath,
       description: req.body.description,
       transcription: req.body.transcription,
-      date: req.body.date ? parseToUTC(req.body.date) : undefined,
+      date:
+        req.body.date && req.body.date.trim()
+          ? parseToUTC(req.body.date)
+          : undefined,
       admin: req.user.id,
       status: PodcastStatus.SCHEDULED,
     });
@@ -61,7 +64,7 @@ export const createPodcast = catchAsync(
   }
 );
 
-// Get all podcasts with filtering, pagination, and sorting
+// Get all podcasts with filtering, pagination, and sorting (ADMIN ONLY - shows all statuses)
 export const getAllPodcasts = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const { status, page, limit, sortBy, sortOrder, search } = req.query;
@@ -103,6 +106,7 @@ export const getAllPodcasts = catchAsync(
 
     let query = Podcast.find(filter)
       .populate("admin", "firstName lastName email profilePicture")
+      .collation({ locale: "en", strength: 2 }) // Case-insensitive sorting
       .sort(sortConditions);
 
     if (limitNum > 0) {
@@ -121,7 +125,103 @@ export const getAllPodcasts = catchAsync(
               (podcast._id as any).toString(),
               podcast.liveSessionId
             )
-          : podcast.status === PodcastStatus.ENDED && podcast.recordedAudioUrl
+          : podcast.status === PodcastStatus.PUBLISHED &&
+            podcast.recordedAudioUrl
+          ? generateRecordedStreamConfig(
+              (podcast._id as any).toString(),
+              podcast.liveSessionId || "",
+              podcast.recordedAudioUrl
+            )
+          : generateStreamConfig((podcast._id as any).toString());
+
+      return {
+        ...podcastObj,
+        streamConfig,
+      };
+    });
+
+    res.status(httpStatus.OK).json({
+      status: "success",
+      results: podcasts.length,
+      data: {
+        podcasts: podcastsWithConfig,
+        pagination: {
+          total,
+          totalPages: Math.ceil(total / limitNum),
+          currentPage: pageNum,
+          limit: limitNum,
+        },
+      },
+    });
+  }
+);
+
+// Get all podcasts for public website (excludes UNPUBLISHED status)
+export const getAllPodcastsForWebsite = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { status, page, limit, sortBy, sortOrder, search } = req.query;
+
+    const filter: any = {
+      status: { $ne: PodcastStatus.UNPUBLISHED }, // Exclude unpublished podcasts
+    };
+
+    // Allow filtering by specific status (but still exclude UNPUBLISHED)
+    if (status) {
+      filter.status = status;
+    }
+
+    if (search) {
+      filter.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Only apply pagination if page or limit is provided
+    const pageNum = page ? parseInt(page as string, 10) : 1;
+    const limitNum = limit ? parseInt(limit as string, 10) : 0;
+
+    // Build sort conditions - supports title, date (createdAt), and duration
+    const sortConditions: { [key: string]: 1 | -1 } = {};
+    if (sortBy && sortOrder) {
+      const sortField = sortBy as string;
+      // Map user-friendly field names to model fields
+      const fieldMap: { [key: string]: string } = {
+        title: "title",
+        date: "date",
+        createdAt: "createdAt",
+        duration: "duration",
+      };
+      const mappedField = fieldMap[sortField] || sortField;
+      sortConditions[mappedField] = sortOrder === "asc" ? 1 : -1;
+    } else {
+      sortConditions.date = -1; // Default: newest first
+      sortConditions.createdAt = -1;
+    }
+
+    let query = Podcast.find(filter)
+      .populate("admin", "firstName lastName email profilePicture")
+      .collation({ locale: "en", strength: 2 }) // Case-insensitive sorting
+      .sort(sortConditions);
+
+    if (limitNum > 0) {
+      query = query.skip((pageNum - 1) * limitNum).limit(limitNum);
+    }
+
+    const podcasts = await query;
+    const total = await Podcast.countDocuments(filter);
+
+    // Add streamConfig to each podcast
+    const podcastsWithConfig = podcasts.map((podcast) => {
+      const podcastObj = podcast.toObject();
+      const streamConfig =
+        podcast.status === PodcastStatus.LIVE && podcast.liveSessionId
+          ? generateLiveStreamConfig(
+              (podcast._id as any).toString(),
+              podcast.liveSessionId
+            )
+          : podcast.status === PodcastStatus.PUBLISHED &&
+            podcast.recordedAudioUrl
           ? generateRecordedStreamConfig(
               (podcast._id as any).toString(),
               podcast.liveSessionId || "",
@@ -187,7 +287,7 @@ export const getPodcast = catchAsync(
             (podcast._id as any).toString(),
             podcast.liveSessionId
           )
-        : podcast.status === PodcastStatus.ENDED && podcast.recordedAudioUrl
+        : podcast.status === PodcastStatus.PUBLISHED && podcast.recordedAudioUrl
         ? generateRecordedStreamConfig(
             (podcast._id as any).toString(),
             podcast.liveSessionId || "",
@@ -325,11 +425,11 @@ export const startPodcast = catchAsync(
       throw new ApiError(httpStatus.BAD_REQUEST, "Podcast is already live");
     }
 
-    // Check if already ended
-    if (podcast.status === PodcastStatus.ENDED) {
+    // Check if already published (ended)
+    if (podcast.status === PodcastStatus.PUBLISHED) {
       throw new ApiError(
         httpStatus.BAD_REQUEST,
-        "Cannot restart an ended podcast"
+        "Cannot restart a published podcast"
       );
     }
 
@@ -423,7 +523,7 @@ export const endPodcast = catchAsync(
     }
 
     // Update status immediately
-    podcast.status = PodcastStatus.ENDED;
+    podcast.status = PodcastStatus.PUBLISHED;
     podcast.actualEnd = nowUTC();
 
     if (podcast.actualStart) {
@@ -517,10 +617,24 @@ export const getLivePodcast = catchAsync(
   }
 );
 
-// Get recorded podcasts
+// Get recorded podcasts (PUBLIC - only published with recordings)
 export const getRecordedPodcasts = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { page, limit, sortBy, sortOrder } = req.query;
+    const { page, limit, sortBy, sortOrder, search } = req.query;
+
+    // Build filter - only PUBLISHED podcasts with recordings
+    const filter: any = {
+      status: PodcastStatus.PUBLISHED,
+      recordedAudioUrl: { $exists: true, $ne: null },
+    };
+
+    // Add search functionality
+    if (search) {
+      filter.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
 
     // Only apply pagination if page or limit is provided
     const pageNum = page ? parseInt(page as string, 10) : 1;
@@ -544,11 +658,9 @@ export const getRecordedPodcasts = catchAsync(
       sortConditions.actualEnd = -1; // Default: newest first
     }
 
-    let query = Podcast.find({
-      status: PodcastStatus.ENDED,
-      recordedAudioUrl: { $exists: true, $ne: null },
-    })
+    let query = Podcast.find(filter)
       .populate("admin", "firstName lastName email profilePicture")
+      .collation({ locale: "en", strength: 2 }) // Case-insensitive sorting
       .sort(sortConditions);
 
     if (limitNum > 0) {
@@ -557,10 +669,7 @@ export const getRecordedPodcasts = catchAsync(
 
     const podcasts = await query;
 
-    const total = await Podcast.countDocuments({
-      status: PodcastStatus.ENDED,
-      recordedAudioUrl: { $exists: true, $ne: null },
-    });
+    const total = await Podcast.countDocuments(filter);
 
     // Refresh signed URLs and add streamConfig to each recorded podcast
     const podcastsWithConfig = await Promise.all(
@@ -659,12 +768,12 @@ export const togglePinPodcast = catchAsync(
   }
 );
 
-// Get pinned podcasts
+// Get pinned podcasts (PUBLIC - only published)
 export const getPinnedPodcasts = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const podcasts = await Podcast.find({
       isPinned: true,
-      status: PodcastStatus.ENDED,
+      status: PodcastStatus.PUBLISHED,
     }).sort({ createdAt: -1 });
 
     res.status(httpStatus.OK).json({

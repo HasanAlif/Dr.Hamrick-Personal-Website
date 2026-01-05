@@ -6,8 +6,16 @@ export const nowUTC = (): Date => {
 };
 
 export const parseToUTC = (dateString: string): Date => {
-  if (!dateString) {
+  if (!dateString || !dateString.trim()) {
     return nowUTC();
+  }
+
+  // Try parsing the date first to handle various formats (MM/DD/YYYY, DD-MM-YYYY, etc.)
+  let date = new Date(dateString);
+
+  // If direct parsing worked and is valid
+  if (!isNaN(date.getTime())) {
+    return date;
   }
 
   // If string doesn't have timezone info, append Z to treat as UTC
@@ -21,10 +29,20 @@ export const parseToUTC = (dateString: string): Date => {
     dateString = dateString + "Z";
   } else if (!hasTimezone && !dateString.includes("T")) {
     // Date only without time - treat as UTC midnight
-    dateString = dateString + "T00:00:00Z";
+    // Check if it's in ISO format (YYYY-MM-DD)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString.trim())) {
+      dateString = dateString + "T00:00:00Z";
+    }
   }
 
-  return new Date(dateString);
+  date = new Date(dateString);
+
+  // Check if date is valid
+  if (isNaN(date.getTime())) {
+    throw new Error(`Invalid date string: ${dateString}`);
+  }
+
+  return date;
 };
 
 export const isInFuture = (date: string | Date): boolean => {

@@ -98,7 +98,9 @@ const getListFromDb = async (
   }
 
   // Apply pagination only if limit is provided
-  let query = Video.find(whereConditions).sort(sortConditions);
+  let query = Video.find(whereConditions)
+    .collation({ locale: "en", strength: 2 }) // Case-insensitive sorting
+    .sort(sortConditions);
 
   if (limit > 0) {
     query = query.skip(skip).limit(limit);

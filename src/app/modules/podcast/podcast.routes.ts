@@ -10,7 +10,8 @@ import { fileUploader } from "../../../helpers/fileUploader";
 const router = express.Router();
 
 // Public routes
-router.get("/", podcastController.getAllPodcasts);
+router.get("/", auth(UserRole.ADMIN), podcastController.getAllPodcasts); // Admin only - shows all statuses
+router.get("/website", podcastController.getAllPodcastsForWebsite); // Public - excludes unpublished
 router.get("/pinned", podcastController.getPinnedPodcasts);
 router.get(
   "/admin-pinned",

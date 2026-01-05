@@ -25,9 +25,7 @@ const createSchema = z.object({
       .optional()
       .default(""),
     uploadDate: z
-      .string({
-        required_error: "Upload date is required",
-      })
+      .string()
       .refine(
         (date) => {
           const parsed = Date.parse(date);
@@ -37,7 +35,8 @@ const createSchema = z.object({
           message:
             "Invalid date format. Use ISO 8601 format (e.g., 2024-01-15T10:00:00Z)",
         }
-      ),
+      )
+      .optional(),
     status: z
       .string()
       .optional()

@@ -80,7 +80,8 @@ const VideoSchema = new Schema<IVideo>(
     },
     uploadDate: {
       type: Date,
-      required: [true, "Upload date is required"],
+      required: false,
+      default: () => new Date(),
     },
     status: {
       type: String,

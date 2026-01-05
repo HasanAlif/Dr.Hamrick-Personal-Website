@@ -3,7 +3,8 @@ import mongoose, { Document, Schema, Types } from "mongoose";
 export enum PodcastStatus {
   SCHEDULED = "scheduled",
   LIVE = "live",
-  ENDED = "ended",
+  PUBLISHED = "published",
+  UNPUBLISHED = "unpublished",
   CANCELLED = "cancelled",
 }
 
