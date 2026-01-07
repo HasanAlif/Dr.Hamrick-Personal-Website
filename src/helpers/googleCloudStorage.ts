@@ -53,13 +53,18 @@ interface UploadResult {
 
 // Upload file to Google Cloud Storage with resumable upload for large files
 // Supports files up to 5GB with automatic retry logic
+// Supports both buffer (small files) and file path (large files) for optimal performance
 export const uploadToGCS = async (
   file: Express.Multer.File,
   folder: string
 ): Promise<UploadResult> => {
   try {
-    if (!file || !file.buffer) {
-      throw new Error("No file provided");
+    // Support both buffer (small files) and path (large files)
+    const hasBuffer = file.buffer && file.buffer.length > 0;
+    const hasPath = file.path && require('fs').existsSync(file.path);
+
+    if (!hasBuffer && !hasPath) {
+      throw new Error("No file provided (no buffer or path)");
     }
 
     // Validate file size
@@ -83,9 +88,10 @@ export const uploadToGCS = async (
     const fileName = `${folder}/${timestamp}_${sanitizedFileName}`;
     const blob = bucket.file(fileName);
 
-    // Use resumable upload for files larger than 10MB for reliability
+    // Always use resumable upload for files larger than 10MB for reliability
     const useResumable = file.size > 10 * 1024 * 1024;
 
+    // Configure write stream with optimized settings for large files
     const blobStream = blob.createWriteStream({
       resumable: useResumable,
       metadata: {
@@ -96,21 +102,37 @@ export const uploadToGCS = async (
           fileSize: file.size.toString(),
         },
       },
-      // Timeout for large uploads (30 minutes)
-      timeout: 30 * 60 * 1000,
+      // Increased timeout for large uploads (90 minutes for 5GB files)
+      timeout: 90 * 60 * 1000,
+      // High water mark for better chunk handling
+      highWaterMark: 8 * 1024 * 1024, // 8MB chunks
     });
 
     return new Promise((resolve, reject) => {
       let uploadTimeout: NodeJS.Timeout;
 
-      // Set overall timeout for the upload (45 minutes for 5GB files)
+      // Set overall timeout for the upload (120 minutes for large files up to 5GB)
+      // This allows ~7.3 MB/s minimum upload speed
       uploadTimeout = setTimeout(() => {
         blobStream.destroy();
-        reject(new Error("Upload timeout: File upload took too long"));
-      }, 45 * 60 * 1000);
+        const timeoutMinutes = 120;
+        reject(
+          new Error(
+            `Upload timeout: File upload exceeded ${timeoutMinutes} minutes. Please check your internet connection and try again.`
+          )
+        );
+      }, 120 * 60 * 1000);
 
       blobStream.on("error", (err: any) => {
         clearTimeout(uploadTimeout);
+        
+        // Clean up temporary file if it exists
+        if (file.path && require('fs').existsSync(file.path)) {
+          require('fs').unlink(file.path, (unlinkErr: any) => {
+            if (unlinkErr) console.error('Error deleting temp file:', unlinkErr);
+          });
+        }
+        
         console.error("GCS Upload Error:", {
           error: err.message,
           code: err.code,
@@ -118,11 +140,23 @@ export const uploadToGCS = async (
           fileSize: file.size,
         });
 
-        // Provide specific error messages
+        // Provide specific error messages based on error type
         if (err.code === "ECONNRESET" || err.code === "ETIMEDOUT") {
           reject(
             new Error(
-              "Network connection lost during upload. Please try again."
+              "Network connection lost during upload. Please check your internet connection and try again."
+            )
+          );
+        } else if (err.code === "ENOBUFS") {
+          reject(
+            new Error(
+              "Network buffer overflow. The file is too large or your connection is too slow. Please try with a smaller file or better connection."
+            )
+          );
+        } else if (err.code === "EPIPE") {
+          reject(
+            new Error(
+              "Connection was closed during upload. Please try again."
             )
           );
         } else if (err.code === 403) {
@@ -131,8 +165,14 @@ export const uploadToGCS = async (
           );
         } else if (err.code === 413) {
           reject(new Error("File size exceeds server upload limit."));
+        } else if (err.code === 429) {
+          reject(
+            new Error(
+              "Too many requests. Please wait a moment and try again."
+            )
+          );
         } else {
-          reject(new Error(`Upload failed: ${err.message}`));
+          reject(new Error(`Upload failed: ${err.message || 'Unknown error'}`));
         }
       });
 
@@ -140,6 +180,13 @@ export const uploadToGCS = async (
         clearTimeout(uploadTimeout);
 
         try {
+          // Clean up temporary file if it exists
+          if (file.path && require('fs').existsSync(file.path)) {
+            require('fs').unlink(file.path, (err: any) => {
+              if (err) console.error('Error deleting temp file:', err);
+            });
+          }
+
           // Generate signed URL for secure access
           const signedUrl = await generateSignedUrl(fileName);
           const publicUrl = `https://storage.googleapis.com/${config.gcs.bucketName}/${fileName}`;
@@ -160,6 +207,14 @@ export const uploadToGCS = async (
           });
         } catch (signedUrlError: any) {
           console.error("Error generating signed URL:", signedUrlError);
+          
+          // Clean up temporary file if it exists
+          if (file.path && require('fs').existsSync(file.path)) {
+            require('fs').unlink(file.path, (err: any) => {
+              if (err) console.error('Error deleting temp file:', err);
+            });
+          }
+          
           // Fallback to public URL if signed URL generation fails
           const publicUrl = `https://storage.googleapis.com/${config.gcs.bucketName}/${fileName}`;
           resolve({
@@ -172,8 +227,28 @@ export const uploadToGCS = async (
         }
       });
 
-      // Write the file buffer
-      blobStream.end(file.buffer);
+      // Stream the file to GCS
+      // Use file path (streaming from disk) for large files, buffer for small files
+      if (file.path && require('fs').existsSync(file.path)) {
+        // Stream from disk - prevents memory overflow for large files
+        console.log(`📤 Streaming from disk: ${file.path}`);
+        const fs = require('fs');
+        const readStream = fs.createReadStream(file.path, {
+          highWaterMark: 8 * 1024 * 1024, // 8MB chunks
+        });
+        
+        readStream.on('error', (err: any) => {
+          clearTimeout(uploadTimeout);
+          console.error('Error reading file from disk:', err);
+          reject(new Error(`Failed to read file: ${err.message}`));
+        });
+        
+        readStream.pipe(blobStream);
+      } else {
+        // Use buffer for small files or when path is not available
+        console.log(`📤 Uploading from memory buffer`);
+        blobStream.end(file.buffer);
+      }
     });
   } catch (error: any) {
     console.error("Error uploading to GCS:", {

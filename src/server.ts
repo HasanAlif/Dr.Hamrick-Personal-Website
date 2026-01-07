@@ -1,6 +1,32 @@
 // Force server to run in UTC timezone - MUST be before any imports
 process.env.TZ = "UTC";
 
+// Increase Node.js memory limit and optimize for large file handling
+// This should be set via NODE_OPTIONS in production: --max-old-space-size=8192
+// Increase HTTP/HTTPS agent keep-alive settings for better connection reuse
+import http from "http";
+import https from "https";
+
+// Configure HTTP/HTTPS agents for better performance with large uploads
+// Create custom agents with keep-alive enabled
+const httpAgent = new http.Agent({
+  keepAlive: true,
+  keepAliveMsecs: 60000, // 60 seconds
+  maxSockets: 50,
+  maxFreeSockets: 10,
+});
+
+const httpsAgent = new https.Agent({
+  keepAlive: true,
+  keepAliveMsecs: 60000,
+  maxSockets: 50,
+  maxFreeSockets: 10,
+});
+
+// Replace global agents
+(http as any).globalAgent = httpAgent;
+(https as any).globalAgent = httpsAgent;
+
 import { Server } from "http";
 import { Server as SocketIOServer } from "socket.io";
 import config from "./config";
@@ -33,9 +59,11 @@ async function startServer() {
   // Initialize Socket.IO
   io = new SocketIOServer(server, {
     cors: corsOptions,
-    maxHttpBufferSize: 1e8, // 100MB for audio chunks
-    pingTimeout: 60000,
+    maxHttpBufferSize: 5e9, // 5GB for large video/audio uploads
+    pingTimeout: 120000, // 2 minutes
     pingInterval: 25000,
+    // Add connection timeout for long uploads
+    connectTimeout: 120000,
   });
 
   // Attach io to app for use in controllers

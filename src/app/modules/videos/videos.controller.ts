@@ -31,9 +31,12 @@ const createVideo = catchAsync(async (req: MulterRequest, res: Response) => {
     throw new ApiError(httpStatus.BAD_REQUEST, "Video file is required");
   }
 
-  // Additional file validations
-  if (!videoFile.buffer || videoFile.buffer.length === 0) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "Uploaded video file is empty");
+  // Validate file exists (either buffer or path)
+  const hasBuffer = videoFile.buffer && videoFile.buffer.length > 0;
+  const hasPath = videoFile.path && require('fs').existsSync(videoFile.path);
+  
+  if (!hasBuffer && !hasPath) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Uploaded video file is empty or invalid");
   }
 
   if (videoFile.size > 5368709120) {
@@ -104,9 +107,15 @@ const createVideo = catchAsync(async (req: MulterRequest, res: Response) => {
 
   try {
     // Extract video duration from buffer (before upload)
+    // Skip for large files (>500MB) or files on disk to save memory
     let videoDuration = 0;
     try {
-      videoDuration = await getVideoDuration(videoFile.buffer);
+      // Only extract duration if file is in memory and small enough
+      if (videoFile.buffer && videoFile.size <= 500 * 1024 * 1024) {
+        videoDuration = await getVideoDuration(videoFile.buffer, videoFile.size);
+      } else {
+        videoDuration = videoData.duration ? Number(videoData.duration) : 0;
+      }
     } catch (durationError) {
       console.warn("⚠️  Could not extract duration, using provided value or 0");
       videoDuration = videoData.duration ? Number(videoData.duration) : 0;
@@ -118,11 +127,31 @@ const createVideo = catchAsync(async (req: MulterRequest, res: Response) => {
     ];
 
     if (thumbnailFile) {
-      uploadPromises.push(
-        import("../../../helpers/fileUploader").then(({ fileUploader }) =>
-          fileUploader.uploadToCloudinary(thumbnailFile)
+      
+      const thumbnailUploadPromise = import("../../../helpers/fileUploader")
+        .then(({ fileUploader }) =>
+          fileUploader.uploadToCloudinary(thumbnailFile, "video-thumbnails")
         )
-      );
+        .then(result => {
+          // Clean up temp thumbnail file if it exists
+          if (thumbnailFile.path && require('fs').existsSync(thumbnailFile.path)) {
+            require('fs').unlink(thumbnailFile.path, (err: any) => {
+              if (err) console.error('Error deleting temp thumbnail:', err);
+            });
+          }
+          return result;
+        })
+        .catch(err => {
+          // Clean up temp thumbnail file on error
+          if (thumbnailFile.path && require('fs').existsSync(thumbnailFile.path)) {
+            require('fs').unlink(thumbnailFile.path, (unlinkErr: any) => {
+              if (unlinkErr) console.error('Error deleting temp thumbnail:', unlinkErr);
+            });
+          }
+          throw err;
+        });
+      
+      uploadPromises.push(thumbnailUploadPromise);
     }
 
     // Wait for all uploads to complete concurrently
@@ -167,21 +196,31 @@ const createVideo = catchAsync(async (req: MulterRequest, res: Response) => {
       fileSize: videoFile.size,
     });
 
-    // Provide specific error messages
-    if (error.message?.includes("timeout")) {
+    // Provide specific, actionable error messages
+    if (error.message?.includes("timeout") || error.message?.includes("Timeout")) {
       throw new ApiError(
         httpStatus.REQUEST_TIMEOUT,
-        "Upload timeout: Large file uploads may take longer. Please try again."
+        `Upload timeout: The ${(videoFile.size / (1024 * 1024 * 1024)).toFixed(2)}GB file took too long to upload. This can happen with slow internet connections. Please try again or use a faster connection.`
       );
-    } else if (error.message?.includes("Network")) {
+    } else if (error.message?.includes("ENOBUFS")) {
       throw new ApiError(
         httpStatus.SERVICE_UNAVAILABLE,
-        "Network error during upload. Please check your connection and try again."
+        "Network buffer overflow: The file is too large for your current connection. Please try again later or contact support if the issue persists."
       );
-    } else if (error.message?.includes("Permission")) {
+    } else if (error.message?.includes("Network") || error.message?.includes("ECONNRESET")) {
+      throw new ApiError(
+        httpStatus.SERVICE_UNAVAILABLE,
+        "Network connection lost during upload. Please check your internet connection and try again."
+      );
+    } else if (error.message?.includes("Permission") || error.message?.includes("403")) {
       throw new ApiError(
         httpStatus.FORBIDDEN,
         "Storage permission error. Please contact administrator."
+      );
+    } else if (error.message?.includes("EPIPE")) {
+      throw new ApiError(
+        httpStatus.BAD_GATEWAY,
+        "Connection was interrupted during upload. Please try again."
       );
     }
 
@@ -316,10 +355,13 @@ const updateVideo = catchAsync(async (req: MulterRequest, res: Response) => {
   // Upload new video if provided
   if (videoFile) {
     // Validate video file
-    if (!videoFile.buffer || videoFile.buffer.length === 0) {
+    const hasBuffer = videoFile.buffer && videoFile.buffer.length > 0;
+    const hasPath = videoFile.path && require('fs').existsSync(videoFile.path);
+    
+    if (!hasBuffer && !hasPath) {
       throw new ApiError(
         httpStatus.BAD_REQUEST,
-        "Uploaded video file is empty"
+        "Uploaded video file is empty or invalid"
       );
     }
 
@@ -340,11 +382,17 @@ const updateVideo = catchAsync(async (req: MulterRequest, res: Response) => {
     );
 
     // Extract video duration from buffer
+    // Skip for large files (>500MB) or files on disk to save memory
     let videoDuration = 0;
     try {
-      videoDuration = await getVideoDuration(videoFile.buffer);
+      // Only extract if file is in memory and small enough
+      if (videoFile.buffer && videoFile.size <= 500 * 1024 * 1024) {
+        videoDuration = await getVideoDuration(videoFile.buffer, videoFile.size);
+      } else {
+        console.log(`Skipping duration extraction (large file or disk storage)`);
+      }
     } catch (durationError) {
-      console.warn("⚠️  Could not extract duration from new video");
+      console.warn("Could not extract duration from new video");
     }
 
     const uploadResult = await googleCloudStorage.uploadVideo(videoFile);
@@ -364,10 +412,29 @@ const updateVideo = catchAsync(async (req: MulterRequest, res: Response) => {
   if (thumbnailFile) {
     console.log(`📸 Uploading new thumbnail: ${thumbnailFile.originalname}`);
     const { fileUploader } = await import("../../../helpers/fileUploader");
-    const thumbnailUploadResult = await fileUploader.uploadToCloudinary(
-      thumbnailFile
-    );
-    fileData.thumbnailUrl = thumbnailUploadResult.Location;
+    
+    try {
+      const thumbnailUploadResult = await fileUploader.uploadToCloudinary(
+        thumbnailFile,
+        "video-thumbnails"
+      );
+      fileData.thumbnailUrl = thumbnailUploadResult.Location;
+      
+      // Clean up temp thumbnail file after successful upload
+      if (thumbnailFile.path && require('fs').existsSync(thumbnailFile.path)) {
+        require('fs').unlink(thumbnailFile.path, (err: any) => {
+          if (err) console.error('Error deleting temp thumbnail:', err);
+        });
+      }
+    } catch (uploadError) {
+      // Clean up temp thumbnail file on error
+      if (thumbnailFile.path && require('fs').existsSync(thumbnailFile.path)) {
+        require('fs').unlink(thumbnailFile.path, (err: any) => {
+          if (err) console.error('Error deleting temp thumbnail:', err);
+        });
+      }
+      throw uploadError;
+    }
   }
 
   // Parse and validate updateData fields

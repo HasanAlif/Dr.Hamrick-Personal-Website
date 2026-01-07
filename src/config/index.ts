@@ -45,5 +45,7 @@ export default {
 
   upload: {
     maxVideoSize: Number(process.env.MAX_VIDEO_SIZE) || 5368709120, // 5GB default
+    chunkSize: Number(process.env.UPLOAD_CHUNK_SIZE) || 8388608, // 8MB default chunk size
+    timeout: Number(process.env.UPLOAD_TIMEOUT) || 7200000, // 2 hours default
   },
 };

@@ -12,7 +12,29 @@ import httpStatus from "http-status";
 const router = express.Router();
 
 // Multer configuration for video uploads
-const storage = multer.memoryStorage(); // Store in memory for streaming to GCS
+// Use disk storage for large files to prevent memory overflow
+import fs from "fs";
+import path from "path";
+import os from "os";
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Use system temp directory
+    const uploadDir = path.join(os.tmpdir(), "video-uploads");
+    
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + "-" + file.originalname);
+  },
+});
 
 const fileFilter = (
   req: Request,
@@ -79,7 +101,9 @@ const upload = multer({
   fileFilter,
   limits: {
     fileSize: config.upload.maxVideoSize, // 5GB from config (applies to video)
-    fieldSize: 10 * 1024 * 1024, // 10MB for text fields
+    fieldSize: 25 * 1024 * 1024, // 25MB for text fields (transcriptions can be large)
+    fields: 20, // Maximum number of non-file fields
+    parts: 100, // Maximum number of parts (multipart/form-data)
   },
 });
 

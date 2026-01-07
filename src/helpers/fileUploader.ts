@@ -22,11 +22,13 @@ const s3Client = new S3Client({
   },
 });
 
-// Configure Cloudinary
+// Configure Cloudinary with increased timeout for large files
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
+  // Increase timeout to 10 minutes for large image uploads
+  timeout: 600000,
 });
 
 // File filter for profile images (only allow images)
@@ -114,10 +116,22 @@ const uploadToCloudinary = async (
         overwrite: false,
         quality: "auto",
         fetch_format: "auto",
+        // Set timeout to 10 minutes for large images
+        timeout: 600000,
       },
       (error, result) => {
         if (error) {
           console.error("Error uploading file to Cloudinary:", error);
+          
+          // Provide specific error message
+          if (error.message?.includes('timeout') || error.http_code === 499) {
+            return reject(
+              new Error(
+                "Upload timeout: The file took too long to upload to Cloudinary. Please try again or use a smaller file."
+              )
+            );
+          }
+          
           return reject(error);
         }
 
@@ -129,8 +143,24 @@ const uploadToCloudinary = async (
       }
     );
 
-    // Convert buffer to stream and upload
-    streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    // Support both buffer (memory storage) and file path (disk storage)
+    if (file.buffer && file.buffer.length > 0) {
+      // File in memory - stream from buffer
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    } else if (file.path && require('fs').existsSync(file.path)) {
+      // File on disk - stream from file path
+      const fs = require('fs');
+      const readStream = fs.createReadStream(file.path);
+      
+      readStream.on('error', (err: any) => {
+        console.error('Error reading file for Cloudinary upload:', err);
+        reject(new Error(`Failed to read file: ${err.message}`));
+      });
+      
+      readStream.pipe(uploadStream);
+    } else {
+      reject(new Error('File has no buffer or path - cannot upload'));
+    }
   });
 };
 
