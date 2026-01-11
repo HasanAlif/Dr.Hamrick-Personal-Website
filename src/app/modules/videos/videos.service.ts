@@ -14,6 +14,7 @@ import {
   startOfDayUTC,
   endOfDayUTC,
 } from "../../../helpers/dateHelpers";
+import { isExternalVideo } from "../../../helpers/videoUrlHelper";
 
 interface IVideoFilter {
   searchTerm?: string;
@@ -113,6 +114,11 @@ const getListFromDb = async (
   const videosWithFreshUrls = await Promise.all(
     result.map(async (video) => {
       try {
+        // Skip URL refresh for external videos (not hosted on GCS)
+        if (isExternalVideo(video.fileName)) {
+          return video.toObject();
+        }
+
         const freshSignedUrl = await refreshSignedUrl(video.fileName);
         // Update in-memory object only, no database write
         const videoObj = video.toObject();
@@ -161,10 +167,13 @@ const getByIdFromDb = async (
     result.views += 1; // Update local object for response
   }
 
-  // Refresh signed URL if fileName exists
+  // Refresh signed URL if fileName exists and not external video
   try {
-    const freshSignedUrl = await refreshSignedUrl(result.fileName);
-    result.signedUrl = freshSignedUrl;
+    // Skip URL refresh for external videos (not hosted on GCS)
+    if (!isExternalVideo(result.fileName)) {
+      const freshSignedUrl = await refreshSignedUrl(result.fileName);
+      result.signedUrl = freshSignedUrl;
+    }
   } catch (error) {
     console.error(
       `Error refreshing signed URL for video ${result._id}:`,
@@ -244,7 +253,12 @@ const updateIntoDb = async (id: string, data: IVideoUpdateData) => {
   }
 
   // Delete old files AFTER successful database update (fire and forget)
-  if (isVideoReplaced && oldVideoUrl) {
+  // Skip GCS deletion for external videos
+  if (
+    isVideoReplaced &&
+    oldVideoUrl &&
+    !isExternalVideo(existingVideo.fileName)
+  ) {
     deleteFromGCS(oldVideoUrl).catch((err) => {
       console.error("Failed to delete old video from GCS:", err);
     });
@@ -283,8 +297,9 @@ const deleteItemFromDb = async (id: string) => {
     await session.commitTransaction();
 
     // Delete from Google Cloud Storage (async, don't block response)
+    // Skip GCS deletion for external videos
     try {
-      if (video.videoUrl) {
+      if (video.videoUrl && !isExternalVideo(video.fileName)) {
         await deleteFromGCS(video.videoUrl);
       }
       if (video.thumbnailUrl) {

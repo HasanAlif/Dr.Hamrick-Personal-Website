@@ -3,6 +3,7 @@ import { Video } from "../app/modules/videos/videos.model";
 import Podcast from "../app/modules/podcast/podcast.model";
 import { Blog } from "../app/modules/blog/blog.model";
 import { refreshSignedUrl } from "../helpers/googleCloudStorage";
+import { isExternalVideo } from "../helpers/videoUrlHelper";
 import audioStreamService from "../app/modules/podcast/audioStreamService";
 
 // Refresh signed URLs for all videos in the database
@@ -20,6 +21,13 @@ const refreshVideoSignedUrls = async (): Promise<void> => {
 
     for (const video of videos) {
       try {
+        // Skip URL refresh for external videos (not hosted on GCS)
+        if (isExternalVideo(video.fileName)) {
+          console.log(`⏭️ Skipping external video ${video._id}`);
+          successCount++;
+          continue;
+        }
+
         const freshSignedUrl = await refreshSignedUrl(video.fileName);
         video.signedUrl = freshSignedUrl;
         await video.save();

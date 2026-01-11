@@ -53,6 +53,8 @@ const createSchema = z.object({
         (val) => !isNaN(val) && val >= 0 && val <= 86400,
         "Duration must be a positive number and cannot exceed 24 hours (86400 seconds)"
       ),
+    // New field: videoUrl - for providing external video URL instead of uploading file
+    videoUrl: z.string().url("Video URL must be a valid URL").optional(),
   }),
 });
 
@@ -105,6 +107,8 @@ const updateSchema = z.object({
         (val) => val === undefined || (!isNaN(val) && val >= 0 && val <= 86400),
         "Duration must be a positive number and cannot exceed 24 hours"
       ),
+    // New field: videoUrl - for updating with external video URL
+    videoUrl: z.string().url("Video URL must be a valid URL").optional(),
   }),
 });
 
