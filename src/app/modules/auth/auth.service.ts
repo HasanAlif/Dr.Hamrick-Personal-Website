@@ -131,7 +131,7 @@ const updateAdminProfile = async (
   // Update only provided fields
   const updateData: any = {};
   if (payload.userName !== undefined) updateData.userName = payload.userName;
-  if (payload.email !== undefined) updateData.email = payload.email;
+  // if (payload.email !== undefined) updateData.email = payload.email;
   if (payload.phoneNumber !== undefined)
     updateData.phoneNumber = payload.phoneNumber;
   if (payload.location !== undefined) updateData.location = payload.location;
