@@ -2,6 +2,7 @@ import cron from "node-cron";
 import { Video } from "../app/modules/videos/videos.model";
 import Podcast from "../app/modules/podcast/podcast.model";
 import { Blog } from "../app/modules/blog/blog.model";
+import { Publications } from "../app/modules/publications/publications.model";
 import { refreshSignedUrl } from "../helpers/googleCloudStorage";
 import { isExternalVideo } from "../helpers/videoUrlHelper";
 import audioStreamService from "../app/modules/podcast/audioStreamService";
@@ -33,16 +34,29 @@ const refreshVideoSignedUrls = async (): Promise<void> => {
         await video.save();
         successCount++;
       } catch (error: any) {
-        console.error(
-          `Failed to refresh signed URL for video ${video._id}:`,
-          error.message
-        );
+        // Check if it's a "file not found" error
+        if (error.statusCode === 404) {
+          console.error(
+            `❌ Video ${video._id} references non-existent file: ${video.fileName}`,
+          );
+        } else if (error.statusCode === 400) {
+          console.log(
+            `⏭️ Skipping video ${video._id} (external or invalid): ${video.fileName}`,
+          );
+          successCount++;
+          continue;
+        } else {
+          console.error(
+            `❌ Failed to refresh signed URL for video ${video._id}:`,
+            error.message,
+          );
+        }
         errorCount++;
       }
     }
 
     console.log(
-      `✅ Video signed URL refresh completed: ${successCount} successful, ${errorCount} failed`
+      `✅ Video signed URL refresh completed: ${successCount} successful, ${errorCount} failed`,
     );
   } catch (error: any) {
     console.error("❌ Error in video signed URL refresh job:", error.message);
@@ -64,7 +78,7 @@ const refreshPodcastSignedUrls = async (): Promise<void> => {
     for (const podcast of podcasts) {
       try {
         const freshSignedUrl = await audioStreamService.refreshPodcastSignedUrl(
-          podcast.recordedFileName!
+          podcast.recordedFileName!,
         );
         podcast.recordedSignedUrl = freshSignedUrl;
         await podcast.save();
@@ -72,14 +86,14 @@ const refreshPodcastSignedUrls = async (): Promise<void> => {
       } catch (error: any) {
         console.error(
           `Failed to refresh signed URL for podcast ${podcast._id}:`,
-          error.message
+          error.message,
         );
         errorCount++;
       }
     }
 
     console.log(
-      `✅ Podcast signed URL refresh completed: ${successCount} successful, ${errorCount} failed`
+      `✅ Podcast signed URL refresh completed: ${successCount} successful, ${errorCount} failed`,
     );
   } catch (error: any) {
     console.error("❌ Error in podcast signed URL refresh job:", error.message);
@@ -107,24 +121,71 @@ const refreshBlogAudioSignedUrls = async (): Promise<void> => {
       } catch (error: any) {
         console.error(
           `Failed to refresh signed URL for blog ${blog._id}:`,
-          error.message
+          error.message,
         );
         errorCount++;
       }
     }
 
     console.log(
-      `✅ Blog audio signed URL refresh completed: ${successCount} successful, ${errorCount} failed`
+      `✅ Blog audio signed URL refresh completed: ${successCount} successful, ${errorCount} failed`,
     );
   } catch (error: any) {
     console.error(
       "❌ Error in blog audio signed URL refresh job:",
-      error.message
+      error.message,
     );
   }
 };
 
-// Refresh all signed URLs (videos + podcasts + blogs)
+// Refresh signed URLs for all publications (PDFs, documents) in the database
+const refreshPublicationsSignedUrls = async (): Promise<void> => {
+  try {
+    console.log("🔄 Starting publications signed URL refresh job...");
+
+    const publications = await Publications.find({
+      fileName: { $exists: true, $ne: null },
+    });
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const publication of publications) {
+      try {
+        // Extract fileName from the 'file' field (which contains the full URL)
+        // Only refresh if the file is stored in GCS (contains bucket name)
+        if (publication.file && publication.fileName) {
+          const freshSignedUrl = await refreshSignedUrl(publication.fileName);
+          publication.file = freshSignedUrl;
+          await publication.save();
+          successCount++;
+        } else {
+          console.log(
+            `⏭️ Skipping publication ${publication._id} - no file stored`,
+          );
+          successCount++;
+        }
+      } catch (error: any) {
+        console.error(
+          `❌ Failed to refresh signed URL for publication ${publication._id}:`,
+          error.message,
+        );
+        errorCount++;
+      }
+    }
+
+    console.log(
+      `✅ Publications signed URL refresh completed: ${successCount} successful, ${errorCount} failed`,
+    );
+  } catch (error: any) {
+    console.error(
+      "❌ Error in publications signed URL refresh job:",
+      error.message,
+    );
+  }
+};
+
+// Refresh all signed URLs (videos + podcasts + blogs + publications)
 const refreshAllSignedUrls = async (): Promise<void> => {
   console.log("📅 Running scheduled signed URL refresh job...");
   const startTime = Date.now();
@@ -133,6 +194,7 @@ const refreshAllSignedUrls = async (): Promise<void> => {
     refreshVideoSignedUrls(),
     refreshPodcastSignedUrls(),
     refreshBlogAudioSignedUrls(),
+    refreshPublicationsSignedUrls(),
   ]);
 
   const duration = ((Date.now() - startTime) / 1000).toFixed(2);
@@ -146,11 +208,11 @@ export const startSignedUrlRefreshJob = (): void => {
     async () => {
       await refreshAllSignedUrls();
     },
-    { timezone: "UTC" }
+    { timezone: "UTC" },
   );
 
   console.log(
-    "✅ Signed URL refresh job scheduled (runs every 6 days at 2 AM UTC)"
+    "✅ Signed URL refresh job scheduled (runs every 6 days at 2 AM UTC)",
   );
 
   // Optional: Run immediately on startup for testing
@@ -163,5 +225,6 @@ export {
   refreshVideoSignedUrls,
   refreshPodcastSignedUrls,
   refreshBlogAudioSignedUrls,
+  refreshPublicationsSignedUrls,
   refreshAllSignedUrls,
 };

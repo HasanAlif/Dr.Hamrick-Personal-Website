@@ -4,7 +4,11 @@ import ApiError from "../../../errors/ApiErrors";
 import httpStatus from "http-status";
 import { paginationHelper } from "../../../helpers/paginationHelper";
 import { IPaginationOptions } from "../../../interfaces/paginations";
-import { deleteFromGCS } from "../../../helpers/googleCloudStorage";
+import {
+  deleteFromGCS,
+  refreshSignedUrl,
+} from "../../../helpers/googleCloudStorage";
+import config from "../../../config";
 
 const createIntoDb = async (publicationData: any) => {
   const sanitizedPublicationData = {
@@ -28,7 +32,7 @@ const createIntoDb = async (publicationData: any) => {
 
 const getListFromDb = async (
   filters: { searchTerm?: string; status?: boolean } = {},
-  paginationOptions: IPaginationOptions = {}
+  paginationOptions: IPaginationOptions = {},
 ) => {
   const { searchTerm, ...filterData } = filters;
   const { page, limit, skip, sortBy, sortOrder } =
@@ -63,6 +67,27 @@ const getListFromDb = async (
   const result = await queryExec;
   const total = await Publications.countDocuments(query);
 
+  // Refresh signed URLs for publications with files
+  const publicationsWithFreshUrls = await Promise.all(
+    result.map(async (publication) => {
+      try {
+        const pubObj = publication.toObject();
+        // Only refresh if the publication has a fileName (stored in GCS)
+        if (publication.fileName && publication.file) {
+          const freshSignedUrl = await refreshSignedUrl(publication.fileName);
+          pubObj.file = freshSignedUrl;
+        }
+        return pubObj;
+      } catch (error: any) {
+        console.error(
+          `Error refreshing signed URL for publication ${publication._id}:`,
+          error.message,
+        );
+        return publication.toObject(); // Return with old URL if refresh fails
+      }
+    }),
+  );
+
   return {
     meta: {
       page,
@@ -70,13 +95,13 @@ const getListFromDb = async (
       total,
       totalPages: Math.ceil(total / limit),
     },
-    data: result,
+    data: publicationsWithFreshUrls,
   };
 };
 
 const getWebsitePublicationsList = async (
   filters: { searchTerm?: string; status?: boolean } = {},
-  paginationOptions: IPaginationOptions = {}
+  paginationOptions: IPaginationOptions = {},
 ) => {
   const { searchTerm, ...filterData } = filters;
   const { page, limit, skip, sortBy, sortOrder } =
@@ -110,7 +135,7 @@ const getWebsitePublicationsList = async (
 
   // Apply pagination only if limit is provided
   let query = Publications.find({ ...whereConditions, status: true }).sort(
-    sortConditions
+    sortConditions,
   );
 
   if (limit > 0) {
@@ -123,6 +148,27 @@ const getWebsitePublicationsList = async (
     status: true,
   });
 
+  // Refresh signed URLs for publications with files
+  const publicationsWithFreshUrls = await Promise.all(
+    result.map(async (publication) => {
+      try {
+        const pubObj = publication.toObject();
+        // Only refresh if the publication has a fileName (stored in GCS)
+        if (publication.fileName && publication.file) {
+          const freshSignedUrl = await refreshSignedUrl(publication.fileName);
+          pubObj.file = freshSignedUrl;
+        }
+        return pubObj;
+      } catch (error: any) {
+        console.error(
+          `Error refreshing signed URL for publication ${publication._id}:`,
+          error.message,
+        );
+        return publication.toObject(); // Return with old URL if refresh fails
+      }
+    }),
+  );
+
   return {
     meta: {
       page,
@@ -130,7 +176,7 @@ const getWebsitePublicationsList = async (
       total,
       totalPages: Math.ceil(total / limit),
     },
-    data: result,
+    data: publicationsWithFreshUrls,
   };
 };
 
@@ -139,6 +185,21 @@ const getByIdFromDb = async (id: string) => {
   if (!result) {
     throw new ApiError(httpStatus.NOT_FOUND, "Publication not found");
   }
+
+  // Refresh signed URL if fileName exists
+  try {
+    if (result.fileName && result.file) {
+      const freshSignedUrl = await refreshSignedUrl(result.fileName);
+      // Update in-memory object
+      result.file = freshSignedUrl;
+    }
+  } catch (error: any) {
+    console.error(
+      `Error refreshing signed URL for publication ${result._id}:`,
+      error.message,
+    );
+  }
+
   return result;
 };
 

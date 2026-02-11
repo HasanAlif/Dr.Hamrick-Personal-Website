@@ -56,12 +56,12 @@ interface UploadResult {
 // Supports both buffer (small files) and file path (large files) for optimal performance
 export const uploadToGCS = async (
   file: Express.Multer.File,
-  folder: string
+  folder: string,
 ): Promise<UploadResult> => {
   try {
     // Support both buffer (small files) and path (large files)
     const hasBuffer = file.buffer && file.buffer.length > 0;
-    const hasPath = file.path && require('fs').existsSync(file.path);
+    const hasPath = file.path && require("fs").existsSync(file.path);
 
     if (!hasBuffer && !hasPath) {
       throw new Error("No file provided (no buffer or path)");
@@ -75,11 +75,11 @@ export const uploadToGCS = async (
     if (file.size > config.upload.maxVideoSize) {
       throw new Error(
         `File size (${(file.size / (1024 * 1024 * 1024)).toFixed(
-          2
+          2,
         )}GB) exceeds maximum limit of ${(
           config.upload.maxVideoSize /
           (1024 * 1024 * 1024)
-        ).toFixed(2)}GB`
+        ).toFixed(2)}GB`,
       );
     }
 
@@ -113,26 +113,30 @@ export const uploadToGCS = async (
 
       // Set overall timeout for the upload (120 minutes for large files up to 5GB)
       // This allows ~7.3 MB/s minimum upload speed
-      uploadTimeout = setTimeout(() => {
-        blobStream.destroy();
-        const timeoutMinutes = 120;
-        reject(
-          new Error(
-            `Upload timeout: File upload exceeded ${timeoutMinutes} minutes. Please check your internet connection and try again.`
-          )
-        );
-      }, 120 * 60 * 1000);
+      uploadTimeout = setTimeout(
+        () => {
+          blobStream.destroy();
+          const timeoutMinutes = 120;
+          reject(
+            new Error(
+              `Upload timeout: File upload exceeded ${timeoutMinutes} minutes. Please check your internet connection and try again.`,
+            ),
+          );
+        },
+        120 * 60 * 1000,
+      );
 
       blobStream.on("error", (err: any) => {
         clearTimeout(uploadTimeout);
-        
+
         // Clean up temporary file if it exists
-        if (file.path && require('fs').existsSync(file.path)) {
-          require('fs').unlink(file.path, (unlinkErr: any) => {
-            if (unlinkErr) console.error('Error deleting temp file:', unlinkErr);
+        if (file.path && require("fs").existsSync(file.path)) {
+          require("fs").unlink(file.path, (unlinkErr: any) => {
+            if (unlinkErr)
+              console.error("Error deleting temp file:", unlinkErr);
           });
         }
-        
+
         console.error("GCS Upload Error:", {
           error: err.message,
           code: err.code,
@@ -144,35 +148,31 @@ export const uploadToGCS = async (
         if (err.code === "ECONNRESET" || err.code === "ETIMEDOUT") {
           reject(
             new Error(
-              "Network connection lost during upload. Please check your internet connection and try again."
-            )
+              "Network connection lost during upload. Please check your internet connection and try again.",
+            ),
           );
         } else if (err.code === "ENOBUFS") {
           reject(
             new Error(
-              "Network buffer overflow. The file is too large or your connection is too slow. Please try with a smaller file or better connection."
-            )
+              "Network buffer overflow. The file is too large or your connection is too slow. Please try with a smaller file or better connection.",
+            ),
           );
         } else if (err.code === "EPIPE") {
           reject(
-            new Error(
-              "Connection was closed during upload. Please try again."
-            )
+            new Error("Connection was closed during upload. Please try again."),
           );
         } else if (err.code === 403) {
           reject(
-            new Error("Permission denied. Check service account permissions.")
+            new Error("Permission denied. Check service account permissions."),
           );
         } else if (err.code === 413) {
           reject(new Error("File size exceeds server upload limit."));
         } else if (err.code === 429) {
           reject(
-            new Error(
-              "Too many requests. Please wait a moment and try again."
-            )
+            new Error("Too many requests. Please wait a moment and try again."),
           );
         } else {
-          reject(new Error(`Upload failed: ${err.message || 'Unknown error'}`));
+          reject(new Error(`Upload failed: ${err.message || "Unknown error"}`));
         }
       });
 
@@ -181,9 +181,9 @@ export const uploadToGCS = async (
 
         try {
           // Clean up temporary file if it exists
-          if (file.path && require('fs').existsSync(file.path)) {
-            require('fs').unlink(file.path, (err: any) => {
-              if (err) console.error('Error deleting temp file:', err);
+          if (file.path && require("fs").existsSync(file.path)) {
+            require("fs").unlink(file.path, (err: any) => {
+              if (err) console.error("Error deleting temp file:", err);
             });
           }
 
@@ -195,7 +195,7 @@ export const uploadToGCS = async (
             `✅ File uploaded successfully: ${fileName} (${(
               file.size /
               (1024 * 1024)
-            ).toFixed(2)}MB)`
+            ).toFixed(2)}MB)`,
           );
 
           resolve({
@@ -207,14 +207,14 @@ export const uploadToGCS = async (
           });
         } catch (signedUrlError: any) {
           console.error("Error generating signed URL:", signedUrlError);
-          
+
           // Clean up temporary file if it exists
-          if (file.path && require('fs').existsSync(file.path)) {
-            require('fs').unlink(file.path, (err: any) => {
-              if (err) console.error('Error deleting temp file:', err);
+          if (file.path && require("fs").existsSync(file.path)) {
+            require("fs").unlink(file.path, (err: any) => {
+              if (err) console.error("Error deleting temp file:", err);
             });
           }
-          
+
           // Fallback to public URL if signed URL generation fails
           const publicUrl = `https://storage.googleapis.com/${config.gcs.bucketName}/${fileName}`;
           resolve({
@@ -229,20 +229,20 @@ export const uploadToGCS = async (
 
       // Stream the file to GCS
       // Use file path (streaming from disk) for large files, buffer for small files
-      if (file.path && require('fs').existsSync(file.path)) {
+      if (file.path && require("fs").existsSync(file.path)) {
         // Stream from disk - prevents memory overflow for large files
         console.log(`📤 Streaming from disk: ${file.path}`);
-        const fs = require('fs');
+        const fs = require("fs");
         const readStream = fs.createReadStream(file.path, {
           highWaterMark: 8 * 1024 * 1024, // 8MB chunks
         });
-        
-        readStream.on('error', (err: any) => {
+
+        readStream.on("error", (err: any) => {
           clearTimeout(uploadTimeout);
-          console.error('Error reading file from disk:', err);
+          console.error("Error reading file from disk:", err);
           reject(new Error(`Failed to read file: ${err.message}`));
         });
-        
+
         readStream.pipe(blobStream);
       } else {
         // Use buffer for small files or when path is not available
@@ -268,7 +268,7 @@ export const uploadToGCS = async (
  */
 const generateSignedUrl = async (
   fileName: string,
-  expiresInDays: number = SIGNED_URL_EXPIRATION_DAYS
+  expiresInDays: number = SIGNED_URL_EXPIRATION_DAYS,
 ): Promise<string> => {
   try {
     const options = {
@@ -292,15 +292,38 @@ const generateSignedUrl = async (
  */
 export const refreshSignedUrl = async (fileName: string): Promise<string> => {
   try {
-    // Check if file exists
+    if (!fileName) {
+      throw new ApiError(400, "File name is required");
+    }
+
+    // Skip external videos that aren't stored in GCS
+    if (fileName.startsWith("external-videos/")) {
+      console.log(`⏭️ Skipping external video: ${fileName}`);
+      throw new ApiError(
+        400,
+        `Cannot refresh URL for external video: ${fileName}`,
+      );
+    }
+
+    // Check if file exists in GCS
     const [exists] = await bucket.file(fileName).exists();
     if (!exists) {
+      console.error(`❌ File not found in GCS bucket: ${fileName}`);
       throw new ApiError(404, `File not found: ${fileName}`);
     }
 
-    return await generateSignedUrl(fileName);
+    const newSignedUrl = await generateSignedUrl(fileName);
+    console.log(`✅ Refreshed signed URL for: ${fileName}`);
+    return newSignedUrl;
   } catch (error: any) {
-    console.error("Error refreshing signed URL:", error);
+    // Don't log full error for 400 (external videos)
+    if (error.statusCode === 400) {
+      throw error;
+    }
+    console.error(
+      `❌ Error refreshing signed URL for ${fileName}:`,
+      error.message,
+    );
     throw error;
   }
 };
@@ -322,7 +345,9 @@ export const deleteFromGCS = async (fileUrl: string): Promise<boolean> => {
 
     // Remove query parameters if present (from signed URLs)
     const fileNameWithParams = urlParts[1];
-    const fileName = fileNameWithParams.split("?")[0];
+    const fileNameEncoded = fileNameWithParams.split("?")[0];
+    // Decode URI components to handle special characters and spaces
+    const fileName = decodeURIComponent(fileNameEncoded);
 
     await bucket.file(fileName).delete();
     console.log(`File deleted from GCS: ${fileName}`);
@@ -339,7 +364,7 @@ export const deleteFromGCS = async (fileUrl: string): Promise<boolean> => {
 
 // Upload video with validation
 export const uploadVideo = async (
-  file: Express.Multer.File
+  file: Express.Multer.File,
 ): Promise<UploadResult> => {
   // Validate file type
   const allowedMimeTypes = [
@@ -360,7 +385,7 @@ export const uploadVideo = async (
     throw new Error(
       `File size exceeds the maximum limit of ${
         config.upload.maxVideoSize / (1024 * 1024)
-      }MB`
+      }MB`,
     );
   }
 
@@ -370,7 +395,7 @@ export const uploadVideo = async (
 // Upload document (PDF, DOCX, PPTX, TXT) with validation
 export const uploadDocument = async (
   file: Express.Multer.File,
-  subfolder: string = "files"
+  subfolder: string = "files",
 ): Promise<UploadResult> => {
   const allowedMimeTypes = [
     "application/pdf",
@@ -382,7 +407,7 @@ export const uploadDocument = async (
 
   if (!allowedMimeTypes.includes(file.mimetype)) {
     throw new Error(
-      "Invalid file type. Only PDF, DOCX, PPTX, XLSX, and TXT files are allowed."
+      "Invalid file type. Only PDF, DOCX, PPTX, XLSX, and TXT files are allowed.",
     );
   }
 
@@ -399,7 +424,7 @@ export const uploadDocument = async (
 // Upload image for publications with validation
 export const uploadPublicationImage = async (
   file: Express.Multer.File,
-  subfolder: string = "covers"
+  subfolder: string = "covers",
 ): Promise<UploadResult> => {
   const allowedMimeTypes = [
     "image/jpeg",
@@ -411,7 +436,7 @@ export const uploadPublicationImage = async (
 
   if (!allowedMimeTypes.includes(file.mimetype)) {
     throw new Error(
-      "Invalid file type. Only JPEG, PNG, WebP, and GIF images are allowed."
+      "Invalid file type. Only JPEG, PNG, WebP, and GIF images are allowed.",
     );
   }
 
@@ -427,7 +452,7 @@ export const uploadPublicationImage = async (
 
 // Upload audio file for blogs with validation
 export const uploadBlogAudio = async (
-  file: Express.Multer.File
+  file: Express.Multer.File,
 ): Promise<UploadResult> => {
   const allowedMimeTypes = [
     "audio/mpeg", // mp3
@@ -445,7 +470,7 @@ export const uploadBlogAudio = async (
 
   if (!allowedMimeTypes.includes(file.mimetype)) {
     throw new Error(
-      "Invalid file type. Only MP3, WAV, OGG, WebM, AAC, and M4A audio files are allowed."
+      "Invalid file type. Only MP3, WAV, OGG, WebM, AAC, and M4A audio files are allowed.",
     );
   }
 
@@ -492,7 +517,7 @@ export const testConnection = async (): Promise<void> => {
     if (error.code === 403) {
       console.error("GCS Permission Error:", error.message);
       console.error(
-        'Please ensure service account has "Storage Object Admin" role'
+        'Please ensure service account has "Storage Object Admin" role',
       );
     } else if (error.code === 404) {
       console.error(`Bucket "${config.gcs.bucketName}" does not exist`);
