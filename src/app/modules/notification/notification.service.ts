@@ -127,7 +127,7 @@ const sendToSubscribers = async (): Promise<INotificationResult> => {
   await Promise.all(markAsNotifiedPromises);
 
   // Step 6: Send emails to all subscribers
-  const websiteUrl = config.site_url || "https://ihamrick-frontend.vercel.app/";
+  const websiteUrl = config.site_url || "https://www.pg-65.com/";
 
   let emailsSent = 0;
   let emailsFailed = 0;
