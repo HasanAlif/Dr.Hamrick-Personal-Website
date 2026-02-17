@@ -343,7 +343,7 @@ export const NOTIFICATION_EMAIL_TEMPLATE = (
               </table>
 
               <p style="margin: 0; color: #999; font-size: 14px; line-height: 1.6; text-align: center;">
-                Stay connected and never miss an update from Dr. Irene Hamrick's journey in thought leadership, research, and life insights.
+                Stay connected and never miss an update from Dr. Irene Hamrick's. Get the latest update from Dr. Hamrick's research based evidence in geriatric medicine.
               </p>
             </td>
           </tr>
