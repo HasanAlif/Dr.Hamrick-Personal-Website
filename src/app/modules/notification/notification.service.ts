@@ -4,9 +4,9 @@ import httpStatus from "http-status";
 import emailSender from "../../../shared/emailSender";
 import { NOTIFICATION_EMAIL_TEMPLATE } from "../../../utils/Template";
 import config from "../../../config";
-import { Blog } from "../blog/blog.model";
+import { Blog, BlogStatus } from "../blog/blog.model";
 import { Publications } from "../publications/publications.model";
-import { Video } from "../videos/videos.model";
+import { Video, VideoStatus } from "../videos/videos.model";
 import Podcast, { PodcastStatus } from "../podcast/podcast.model";
 import { LifeSuggestion } from "../lifeSuggestion/lifeSuggestion.model";
 import { RssFeed } from "../RssFeedUsers/RssFeed.model";
@@ -44,9 +44,13 @@ const sendToSubscribers = async (): Promise<INotificationResult> => {
     unnotifiedLifeSuggestions,
     livePodcasts,
   ] = await Promise.all([
-    Blog.find({ isNotified: false, status: true }).lean(),
+    Blog.find({ isNotified: false, status: BlogStatus.PUBLISHED }).lean(),
     Publications.find({ isNotified: false, status: true }).lean(),
-    Video.find({ isNotified: false, status: true, isDeleted: false }).lean(),
+    Video.find({
+      isNotified: false,
+      status: VideoStatus.PUBLISHED,
+      isDeleted: false,
+    }).lean(),
     Podcast.find({ isNotified: false }).lean(),
     LifeSuggestion.find({ isNotified: false }).lean(),
     Podcast.find({ status: PodcastStatus.LIVE }).lean(),
@@ -74,7 +78,7 @@ const sendToSubscribers = async (): Promise<INotificationResult> => {
   if (totalNewContent === 0 && livePodcastCount === 0) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
-      "No new content to notify subscribers about"
+      "No new content to notify subscribers about",
     );
   }
 
@@ -84,9 +88,9 @@ const sendToSubscribers = async (): Promise<INotificationResult> => {
   if (counts.blogs > 0) {
     markAsNotifiedPromises.push(
       Blog.updateMany(
-        { isNotified: false, status: true },
-        { $set: { isNotified: true } }
-      )
+        { isNotified: false, status: BlogStatus.PUBLISHED },
+        { $set: { isNotified: true } },
+      ),
     );
   }
 
@@ -94,23 +98,23 @@ const sendToSubscribers = async (): Promise<INotificationResult> => {
     markAsNotifiedPromises.push(
       Publications.updateMany(
         { isNotified: false, status: true },
-        { $set: { isNotified: true } }
-      )
+        { $set: { isNotified: true } },
+      ),
     );
   }
 
   if (counts.videos > 0) {
     markAsNotifiedPromises.push(
       Video.updateMany(
-        { isNotified: false, status: true, isDeleted: false },
-        { $set: { isNotified: true } }
-      )
+        { isNotified: false, status: VideoStatus.PUBLISHED, isDeleted: false },
+        { $set: { isNotified: true } },
+      ),
     );
   }
 
   if (counts.podcasts > 0) {
     markAsNotifiedPromises.push(
-      Podcast.updateMany({ isNotified: false }, { $set: { isNotified: true } })
+      Podcast.updateMany({ isNotified: false }, { $set: { isNotified: true } }),
     );
   }
 
@@ -118,8 +122,8 @@ const sendToSubscribers = async (): Promise<INotificationResult> => {
     markAsNotifiedPromises.push(
       LifeSuggestion.updateMany(
         { isNotified: false },
-        { $set: { isNotified: true } }
-      )
+        { $set: { isNotified: true } },
+      ),
     );
   }
 
@@ -127,7 +131,7 @@ const sendToSubscribers = async (): Promise<INotificationResult> => {
   await Promise.all(markAsNotifiedPromises);
 
   // Step 6: Send emails to all subscribers
-  const websiteUrl = config.site_url || "https://www.pg-65.com/";
+  const websiteUrl = "https://www.pg-65.com/";
 
   let emailsSent = 0;
   let emailsFailed = 0;
@@ -151,7 +155,7 @@ const sendToSubscribers = async (): Promise<INotificationResult> => {
           emailHtml,
           livePodcastCount > 0
             ? "🔴 Dr. Irene Hamrick is Live Now!"
-            : "New Content from Dr. Irene Hamrick"
+            : "New Content from Dr. Irene Hamrick",
         );
 
         return { success: true, email: subscriber.email };
