@@ -177,7 +177,7 @@ interface INotificationData {
 }
 
 export const NOTIFICATION_EMAIL_TEMPLATE = (
-  data: INotificationData
+  data: INotificationData,
 ): string => {
   const { subscriberName, counts, livePodcasts, websiteUrl } = data;
 
@@ -185,27 +185,27 @@ export const NOTIFICATION_EMAIL_TEMPLATE = (
   const contentItems: string[] = [];
   if (counts.blogs > 0)
     contentItems.push(
-      `${counts.blogs} new ${counts.blogs === 1 ? "blog" : "blogs"}`
+      `${counts.blogs} new ${counts.blogs === 1 ? "blog" : "blogs"}`,
     );
   if (counts.publications > 0)
     contentItems.push(
       `${counts.publications} new ${
         counts.publications === 1 ? "publication" : "publications"
-      }`
+      }`,
     );
   if (counts.videos > 0)
     contentItems.push(
-      `${counts.videos} new ${counts.videos === 1 ? "video" : "videos"}`
+      `${counts.videos} new ${counts.videos === 1 ? "video" : "videos"}`,
     );
   if (counts.podcasts > 0)
     contentItems.push(
-      `${counts.podcasts} new ${counts.podcasts === 1 ? "podcast" : "podcasts"}`
+      `${counts.podcasts} new ${counts.podcasts === 1 ? "podcast" : "podcasts"}`,
     );
   if (counts.lifeSuggestions > 0)
     contentItems.push(
       `${counts.lifeSuggestions} new life ${
         counts.lifeSuggestions === 1 ? "suggestion" : "suggestions"
-      }`
+      }`,
     );
 
   // Format content list
@@ -268,12 +268,12 @@ export const NOTIFICATION_EMAIL_TEMPLATE = (
               
               <p style="margin: 0 0 30px; color: #c0c0c0; font-size: 16px; line-height: 1.6;">
                 ${livePodcasts > 0 ? "🎙️ " : ""}Dr. Irene Hamrick has ${
-    livePodcasts > 0 ? "gone live and" : ""
-  } added <strong style="color: #ff7777;">${contentSummary}</strong> ${
-    livePodcasts > 0 ? "to the platform" : "for you to explore"
-  }. Don't miss out on this exciting ${
-    livePodcasts > 0 ? "live session and " : ""
-  }new content!
+                  livePodcasts > 0 ? "gone live and" : ""
+                } added <strong style="color: #ff7777;">${contentSummary}</strong> ${
+                  livePodcasts > 0 ? "to the platform" : "for you to explore"
+                }. Don't miss out on this exciting ${
+                  livePodcasts > 0 ? "live session and " : ""
+                }new content!
               </p>
 
               ${
@@ -343,7 +343,7 @@ export const NOTIFICATION_EMAIL_TEMPLATE = (
               </table>
 
               <p style="margin: 0; color: #999; font-size: 14px; line-height: 1.6; text-align: center;">
-                Stay connected and never miss an update from Dr. Irene Hamrick's. Get the latest update from Dr. Hamrick's research based evidence in geriatric medicine.
+                Get the latest update from Dr. Hamrick's research based evidence in geriatric medicine.
               </p>
             </td>
           </tr>
