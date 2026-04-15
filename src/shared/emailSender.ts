@@ -6,6 +6,15 @@ let transporterInstance: Transporter | null = null;
 
 const getTransporter = (): Transporter => {
   if (!transporterInstance) {
+    // Step 5: Log config validation
+    console.log("SMTP CONFIG:", {
+      host: config.emailSender.smtp_host,
+      port: config.emailSender.smtp_port,
+      user: config.emailSender.email,
+      passLength: config.emailSender.mailbox_password?.length,
+      passFirst3: config.emailSender.mailbox_password?.substring(0, 3),
+    });
+
     transporterInstance = nodemailer.createTransport({
       host: config.emailSender.smtp_host,
       port: config.emailSender.smtp_port,
@@ -17,20 +26,20 @@ const getTransporter = (): Transporter => {
       // Production optimizations
       pool: true,
       maxConnections: 5,
-      maxMessages: 100,
+      maxMessages: 500,
       rateDelta: 400,
       rateLimit: 5,
-      connectionTimeout: 10000,
-      socketTimeout: 10000,
+      connectionTimeout: 30000,
+      socketTimeout: 30000,
+      requireTLS: true,
+      logger: true,   // Step 4: Add logging
+      debug: true,    // Step 4: Add debug info
     });
 
     // Verify connection configuration
     transporterInstance.verify((error) => {
       if (error) {
-        console.error(
-          "Email transporter verification failed:",
-          error.message
-        );
+        console.error("Email transporter verification failed:", error.message);
       } else {
         console.log("Email transporter verified successfully");
       }
@@ -49,7 +58,7 @@ interface EmailSendResult {
 const emailSender = async (
   email: string,
   html: string,
-  subject: string
+  subject: string,
 ): Promise<EmailSendResult> => {
   try {
     // Validate inputs
@@ -58,9 +67,7 @@ const emailSender = async (
     }
 
     if (!config.emailSender.email || !config.emailSender.mailbox_password) {
-      throw new Error(
-        "Email configuration missing in environment variables"
-      );
+      throw new Error("Email configuration missing in environment variables");
     }
 
     const transporter = getTransporter();
@@ -101,4 +108,3 @@ const emailSender = async (
 };
 
 export default emailSender;
-

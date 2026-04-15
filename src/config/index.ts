@@ -21,8 +21,8 @@ export default {
     email: process.env.EMAIL || "hamrick@pg-65.com",
     app_pass: process.env.APP_PASS,
     mailbox_password: process.env.MAILBOX_PASSWORD,
-    smtp_host: "netsol-smtp-oxcs.hostingplatform.com",
-    smtp_port: 587,
+    smtp_host: process.env.SMTP_HOST,
+    smtp_port: Number(process.env.SMTP_PORT) || 587,
   },
 
   site_name: process.env.WEBSITE_NAME,
