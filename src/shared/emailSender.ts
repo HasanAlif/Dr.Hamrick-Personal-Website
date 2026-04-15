@@ -6,15 +6,6 @@ let transporterInstance: Transporter | null = null;
 
 const getTransporter = (): Transporter => {
   if (!transporterInstance) {
-    // Step 5: Log config validation
-    console.log("SMTP CONFIG:", {
-      host: config.emailSender.smtp_host,
-      port: config.emailSender.smtp_port,
-      user: config.emailSender.email,
-      passLength: config.emailSender.mailbox_password?.length,
-      passFirst3: config.emailSender.mailbox_password?.substring(0, 3),
-    });
-
     transporterInstance = nodemailer.createTransport({
       host: config.emailSender.smtp_host,
       port: config.emailSender.smtp_port,
@@ -32,16 +23,14 @@ const getTransporter = (): Transporter => {
       connectionTimeout: 30000,
       socketTimeout: 30000,
       requireTLS: true,
-      logger: true,   // Step 4: Add logging
-      debug: true,    // Step 4: Add debug info
+      logger: true, // Step 4: Add logging
+      debug: true, // Step 4: Add debug info
     });
 
     // Verify connection configuration
     transporterInstance.verify((error) => {
       if (error) {
         console.error("Email transporter verification failed:", error.message);
-      } else {
-        console.log("Email transporter verified successfully");
       }
     });
   }
@@ -80,11 +69,6 @@ const emailSender = async (
     };
 
     const info = await transporter.sendMail(mailOptions);
-
-    console.log("Email sent successfully:", {
-      to: email,
-      messageId: info.messageId,
-    });
 
     return {
       success: true,

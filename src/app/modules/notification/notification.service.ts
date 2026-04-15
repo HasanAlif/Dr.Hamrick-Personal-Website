@@ -27,6 +27,118 @@ interface INotificationResult {
   emailsFailed: number;
 }
 
+/**
+ * Fetches the most recently uploaded content across all types (blog, video, publication, podcast)
+ * and returns the appropriate link to that content.
+ * Falls back to homepage if no publishable content exists.
+ */
+const getLatestContentUrl = async (): Promise<string> => {
+  const baseUrl = "https://www.pg-65.com";
+
+  try {
+    // Query latest from each content type in parallel
+    const [latestBlog, latestVideo, latestPublication, latestPodcast] =
+      await Promise.all([
+        Blog.findOne({ status: BlogStatus.PUBLISHED })
+          .select("_id uploadDate createdAt")
+          .sort({ uploadDate: -1 })
+          .lean(),
+        Video.findOne({ status: VideoStatus.PUBLISHED, isDeleted: false })
+          .select("_id uploadDate createdAt")
+          .sort({ uploadDate: -1 })
+          .lean(),
+        Publications.findOne({ status: true })
+          .select("_id publicationDate createdAt")
+          .sort({ publicationDate: -1 })
+          .lean(),
+        Podcast.findOne({ status: PodcastStatus.PUBLISHED })
+          .select("_id actualStart createdAt")
+          .sort({ actualStart: -1 })
+          .lean(),
+      ]);
+
+    // Helper to get comparable timestamp - uses primary field with createdAt as fallback
+    const getTimestamp = (
+      content: any,
+      primaryField: string,
+      contentType: string,
+    ): Date | null => {
+      if (!content) return null;
+
+      const primaryValue = content[primaryField];
+      const createdAtValue = content.createdAt;
+
+      // Use primary field if available, otherwise use createdAt
+      if (primaryValue) {
+        return new Date(primaryValue);
+      }
+
+      if (createdAtValue) {
+        console.log(
+          `[Latest Content] Using createdAt for ${contentType} (id: ${content._id}) - primaryField "${primaryField}" was null`,
+        );
+        return new Date(createdAtValue);
+      }
+
+      return null;
+    };
+
+    // Build array of content with timestamps for comparison
+    const contentWithDates = [
+      {
+        type: "blog",
+        id: latestBlog?._id,
+        timestamp: getTimestamp(latestBlog, "uploadDate", "blog"),
+      },
+      {
+        type: "videos",
+        id: latestVideo?._id,
+        timestamp: getTimestamp(latestVideo, "uploadDate", "video"),
+      },
+      {
+        type: "publications",
+        id: latestPublication?._id,
+        timestamp: getTimestamp(
+          latestPublication,
+          "publicationDate",
+          "publication",
+        ),
+      },
+      {
+        type: "podcasts",
+        id: latestPodcast?._id,
+        timestamp: getTimestamp(latestPodcast, "actualStart", "podcast"),
+      },
+    ];
+
+    // Filter out items with no timestamp
+    const validContent = contentWithDates.filter((item) => item.timestamp);
+
+    // If no valid content, return homepage
+    if (validContent.length === 0) {
+      return baseUrl;
+    }
+
+    // Find the most recent content by timestamp
+    const latest = validContent.reduce((prev, current) =>
+      (current.timestamp?.getTime() || 0) > (prev.timestamp?.getTime() || 0)
+        ? current
+        : prev,
+    );
+
+    console.log(
+      `[Latest Content] Selected: ${latest.type} (id: ${latest.id}) at ${latest.timestamp?.toISOString()}`,
+    );
+
+    // Return the appropriate link
+    return `${baseUrl}/${latest.type}/${latest.id}`;
+  } catch (error) {
+    // On any error, safely fall back to homepage
+    console.error("Error fetching latest content URL:", error);
+    return "https://www.pg-65.com";
+  }
+};
+
 const sendToSubscribers = async (): Promise<INotificationResult> => {
   // Step 1: Get all RSS Feed subscribers first (outside transaction)
   const subscribers = await RssFeed.find({}).lean();
@@ -130,8 +242,8 @@ const sendToSubscribers = async (): Promise<INotificationResult> => {
   // Execute all updates in parallel
   await Promise.all(markAsNotifiedPromises);
 
-  // Step 6: Send emails to all subscribers
-  const websiteUrl = "https://www.pg-65.com/";
+  // Step 6: Get the latest content URL dynamically
+  const websiteUrl = await getLatestContentUrl();
 
   let emailsSent = 0;
   let emailsFailed = 0;
