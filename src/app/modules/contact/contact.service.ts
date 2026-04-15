@@ -41,7 +41,14 @@ const createContact = async (payload: ContactAttrs) => {
     `;
 
     // Send the email notification
-    await emailSender(adminEmail, htmlContent, subject);
+    const emailResult = await emailSender(adminEmail, htmlContent, subject);
+
+    if (!emailResult.success) {
+      console.warn(
+        `Email notification failed for contact from ${payload.email}:`,
+        emailResult.error
+      );
+    }
 
     return result;
   } catch (error) {

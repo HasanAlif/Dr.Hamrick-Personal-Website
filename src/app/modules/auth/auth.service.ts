@@ -208,7 +208,7 @@ const forgotPassword = async (payload: { email: string }) => {
   });
 
   // Send OTP via email
-  await emailSender(
+  const emailResult = await emailSender(
     payload.email,
     `<!DOCTYPE html>
 <html lang="en">
@@ -241,6 +241,10 @@ const forgotPassword = async (payload: { email: string }) => {
     "Password Reset OTP"
   );
 
+  if (!emailResult.success) {
+    console.warn("Failed to send password reset OTP:", emailResult.error);
+  }
+
   return { message: "OTP sent to your email", otp }; // Remove otp in production
 };
 
@@ -261,7 +265,7 @@ const resendOtp = async (email: string) => {
   });
 
   // Send OTP via email
-  await emailSender(
+  const emailResult = await emailSender(
     email,
     `<!DOCTYPE html>
 <html lang="en">
@@ -293,6 +297,10 @@ const resendOtp = async (email: string) => {
 </html>`,
     "Password Reset OTP"
   );
+
+  if (!emailResult.success) {
+    console.warn("Failed to send password reset OTP:", emailResult.error);
+  }
 
   return { message: "OTP resent to your email", otp }; // Remove otp in production
 };

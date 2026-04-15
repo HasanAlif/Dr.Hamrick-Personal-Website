@@ -150,7 +150,7 @@ const sendToSubscribers = async (): Promise<INotificationResult> => {
           websiteUrl,
         });
 
-        await emailSender(
+        const result = await emailSender(
           subscriber.email,
           emailHtml,
           livePodcastCount > 0
@@ -158,7 +158,11 @@ const sendToSubscribers = async (): Promise<INotificationResult> => {
             : "New Content from Dr. Irene Hamrick",
         );
 
-        return { success: true, email: subscriber.email };
+        return {
+          success: result.success,
+          email: subscriber.email,
+          messageId: result.messageId,
+        };
       } catch (error) {
         console.error(`Failed to send email to ${subscriber.email}:`, error);
         return { success: false, email: subscriber.email };
