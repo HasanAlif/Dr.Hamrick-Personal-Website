@@ -1,12 +1,5 @@
 import { z } from "zod";
-
-// Helper for parsing string values from form data
-const parseBoolean = (value: unknown) => {
-  if (typeof value === "boolean") return value;
-  if (value === "true") return true;
-  if (value === "false") return false;
-  return Boolean(value);
-};
+import { PublicationStatus } from "./publications.model";
 
 const createSchema = z.object({
   body: z.object({
@@ -19,13 +12,12 @@ const createSchema = z.object({
     publicationDate: z.string().optional(),
     fileType: z.enum(["pdf", "pptx", "docx", "txt"]).optional(),
     status: z
-      .union([
-        z.boolean(),
-        z.string().transform(parseBoolean),
-        z.any().transform((val) => parseBoolean(val)),
+      .enum([
+        PublicationStatus.PUBLISHED,
+        PublicationStatus.UNPUBLISHED,
+        PublicationStatus.SCHEDULED,
       ])
-      .optional()
-      .default(true),
+      .optional(),
     description: z.string().min(1, "Description cannot be empty"),
     coverImage: z.string().optional(),
     file: z.string().optional(),
@@ -39,10 +31,10 @@ const updateSchema = z.object({
     publicationDate: z.string().optional(),
     fileType: z.enum(["pdf", "pptx", "docx", "txt"]).optional(),
     status: z
-      .union([
-        z.boolean(),
-        z.string().transform(parseBoolean),
-        z.any().transform((val) => parseBoolean(val)),
+      .enum([
+        PublicationStatus.PUBLISHED,
+        PublicationStatus.UNPUBLISHED,
+        PublicationStatus.SCHEDULED,
       ])
       .optional(),
     description: z.string().min(1, "Description cannot be empty").optional(),

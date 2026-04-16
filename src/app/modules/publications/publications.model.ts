@@ -1,12 +1,18 @@
 import mongoose, { Document, Schema } from "mongoose";
 
+export enum PublicationStatus {
+  PUBLISHED = "published",
+  UNPUBLISHED = "unpublished",
+  SCHEDULED = "scheduled",
+}
+
 export interface IPublications extends Document {
   _id: string;
   title: string;
   author: string;
   publicationDate: string;
   fileType?: string;
-  status: boolean;
+  status: PublicationStatus;
   description: string;
   coverImage?: string;
   file?: string;
@@ -38,8 +44,9 @@ const PublicationsSchema = new Schema<IPublications>(
       trim: true,
     },
     status: {
-      type: Boolean,
-      default: true,
+      type: String,
+      enum: Object.values(PublicationStatus),
+      default: PublicationStatus.PUBLISHED,
     },
     description: {
       type: String,
@@ -70,17 +77,18 @@ const PublicationsSchema = new Schema<IPublications>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Index for better performance
 PublicationsSchema.index({ title: 1 });
 PublicationsSchema.index({ status: 1 });
+PublicationsSchema.index({ createdAt: -1 });
 
 // Compound index for efficient pinned sorting
 PublicationsSchema.index({ isPinned: -1, createdAt: -1 });
 
 export const Publications = mongoose.model<IPublications>(
   "Publications",
-  PublicationsSchema
+  PublicationsSchema,
 );

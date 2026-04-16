@@ -1,11 +1,12 @@
-import mongoose from "mongoose";
 import ApiError from "../../../errors/ApiErrors";
 import httpStatus from "http-status";
 import emailSender from "../../../shared/emailSender";
 import { NOTIFICATION_EMAIL_TEMPLATE } from "../../../utils/Template";
-import config from "../../../config";
 import { Blog, BlogStatus } from "../blog/blog.model";
-import { Publications } from "../publications/publications.model";
+import {
+  Publications,
+  PublicationStatus,
+} from "../publications/publications.model";
 import { Video, VideoStatus } from "../videos/videos.model";
 import Podcast, { PodcastStatus } from "../podcast/podcast.model";
 import { LifeSuggestion } from "../lifeSuggestion/lifeSuggestion.model";
@@ -27,11 +28,6 @@ interface INotificationResult {
   emailsFailed: number;
 }
 
-/**
- * Fetches the most recently uploaded content across all types (blog, video, publication, podcast)
- * and returns the appropriate link to that content.
- * Falls back to homepage if no publishable content exists.
- */
 const getLatestContentUrl = async (): Promise<string> => {
   const baseUrl = "https://www.pg-65.com";
 
@@ -40,102 +36,70 @@ const getLatestContentUrl = async (): Promise<string> => {
     const [latestBlog, latestVideo, latestPublication, latestPodcast] =
       await Promise.all([
         Blog.findOne({ status: BlogStatus.PUBLISHED })
-          .select("_id uploadDate createdAt")
-          .sort({ uploadDate: -1 })
+          .select("_id uploadDate")
+          .sort({ uploadDate: -1, createdAt: -1 })
           .lean(),
         Video.findOne({ status: VideoStatus.PUBLISHED, isDeleted: false })
-          .select("_id uploadDate createdAt")
-          .sort({ uploadDate: -1 })
+          .select("_id uploadDate")
+          .sort({ uploadDate: -1, createdAt: -1 })
           .lean(),
-        Publications.findOne({ status: true })
-          .select("_id publicationDate createdAt")
-          .sort({ publicationDate: -1 })
+        Publications.findOne({ status: PublicationStatus.PUBLISHED })
+          .select("_id createdAt")
+          .sort({ createdAt: -1 })
           .lean(),
         Podcast.findOne({ status: PodcastStatus.PUBLISHED })
-          .select("_id actualStart createdAt")
-          .sort({ actualStart: -1 })
+          .select("_id actualStart")
+          .sort({ actualStart: -1, createdAt: -1 })
           .lean(),
       ]);
 
-    // Helper to get comparable timestamp - uses primary field with createdAt as fallback
-    const getTimestamp = (
-      content: any,
-      primaryField: string,
-      contentType: string,
-    ): Date | null => {
-      if (!content) return null;
-
-      const primaryValue = content[primaryField];
-      const createdAtValue = content.createdAt;
-
-      // Use primary field if available, otherwise use createdAt
-      if (primaryValue) {
-        return new Date(primaryValue);
-      }
-
-      if (createdAtValue) {
-        console.log(
-          `[Latest Content] Using createdAt for ${contentType} (id: ${content._id}) - primaryField "${primaryField}" was null`,
-        );
-        return new Date(createdAtValue);
-      }
-
-      return null;
-    };
-
-    // Build array of content with timestamps for comparison
+    // Build array of content with primary date field
     const contentWithDates = [
-      {
-        type: "blog",
-        id: latestBlog?._id,
-        timestamp: getTimestamp(latestBlog, "uploadDate", "blog"),
-      },
-      {
-        type: "videos",
-        id: latestVideo?._id,
-        timestamp: getTimestamp(latestVideo, "uploadDate", "video"),
-      },
+      { type: "blog", id: latestBlog?._id, date: latestBlog?.uploadDate },
+      { type: "videos", id: latestVideo?._id, date: latestVideo?.uploadDate },
       {
         type: "publications",
         id: latestPublication?._id,
-        timestamp: getTimestamp(
-          latestPublication,
-          "publicationDate",
-          "publication",
-        ),
+        date: latestPublication?.createdAt,
       },
       {
         type: "podcasts",
         id: latestPodcast?._id,
-        timestamp: getTimestamp(latestPodcast, "actualStart", "podcast"),
+        date: latestPodcast?.actualStart,
       },
     ];
 
-    // Filter out items with no timestamp
-    const validContent = contentWithDates.filter((item) => item.timestamp);
+    // Filter out items without valid dates
+    const validContent = contentWithDates.filter((item) => {
+      if (!item.date) return false;
+      const dateTime = new Date(item.date).getTime();
+      return dateTime > 0;
+    });
 
     // If no valid content, return homepage
     if (validContent.length === 0) {
+      console.log(
+        "[Latest Content] No publishable content found, using homepage",
+      );
       return baseUrl;
     }
 
-    // Find the most recent content by timestamp
-    const latest = validContent.reduce((prev, current) =>
-      (current.timestamp?.getTime() || 0) > (prev.timestamp?.getTime() || 0)
-        ? current
-        : prev,
-    );
+    // Find the most recent content by direct date comparison
+    const latest = validContent.reduce((prev, current) => {
+      const currentTime = new Date(current.date!).getTime();
+      const prevTime = new Date(prev.date!).getTime();
+      return currentTime > prevTime ? current : prev;
+    });
 
     console.log(
-      `[Latest Content] Selected: ${latest.type} (id: ${latest.id}) at ${latest.timestamp?.toISOString()}`,
+      `[Latest Content] Selected: ${latest.type} (id: ${latest.id}) at ${new Date(latest.date!).toISOString()}`,
     );
 
-    // Return the appropriate link
     return `${baseUrl}/${latest.type}/${latest.id}`;
   } catch (error) {
     // On any error, safely fall back to homepage
     console.error("Error fetching latest content URL:", error);
-    return "https://www.pg-65.com";
+    return baseUrl;
   }
 };
 
@@ -157,7 +121,10 @@ const sendToSubscribers = async (): Promise<INotificationResult> => {
     livePodcasts,
   ] = await Promise.all([
     Blog.find({ isNotified: false, status: BlogStatus.PUBLISHED }).lean(),
-    Publications.find({ isNotified: false, status: true }).lean(),
+    Publications.find({
+      isNotified: false,
+      status: PublicationStatus.PUBLISHED,
+    }).lean(),
     Video.find({
       isNotified: false,
       status: VideoStatus.PUBLISHED,
@@ -209,7 +176,7 @@ const sendToSubscribers = async (): Promise<INotificationResult> => {
   if (counts.publications > 0) {
     markAsNotifiedPromises.push(
       Publications.updateMany(
-        { isNotified: false, status: true },
+        { isNotified: false, status: PublicationStatus.PUBLISHED },
         { $set: { isNotified: true } },
       ),
     );
@@ -218,7 +185,11 @@ const sendToSubscribers = async (): Promise<INotificationResult> => {
   if (counts.videos > 0) {
     markAsNotifiedPromises.push(
       Video.updateMany(
-        { isNotified: false, status: VideoStatus.PUBLISHED, isDeleted: false },
+        {
+          isNotified: false,
+          status: VideoStatus.PUBLISHED,
+          isDeleted: false,
+        },
         { $set: { isNotified: true } },
       ),
     );

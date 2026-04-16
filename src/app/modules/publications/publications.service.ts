@@ -1,5 +1,4 @@
-import mongoose from "mongoose";
-import { Publications, IPublications } from "./publications.model";
+import { Publications } from "./publications.model";
 import ApiError from "../../../errors/ApiErrors";
 import httpStatus from "http-status";
 import { paginationHelper } from "../../../helpers/paginationHelper";
@@ -8,7 +7,6 @@ import {
   deleteFromGCS,
   refreshSignedUrl,
 } from "../../../helpers/googleCloudStorage";
-import config from "../../../config";
 
 const createIntoDb = async (publicationData: any) => {
   const sanitizedPublicationData = {
@@ -17,10 +15,7 @@ const createIntoDb = async (publicationData: any) => {
     publicationDate: publicationData.publicationDate,
     fileType: publicationData.fileType,
     description: publicationData.description,
-    status:
-      publicationData.status !== undefined
-        ? Boolean(publicationData.status)
-        : true,
+    status: publicationData.status,
     coverImage: publicationData.coverImage,
     file: publicationData.file,
     fileName: publicationData.fileName,

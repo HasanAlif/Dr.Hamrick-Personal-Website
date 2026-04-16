@@ -23,8 +23,8 @@ const getTransporter = (): Transporter => {
       connectionTimeout: 30000,
       socketTimeout: 30000,
       requireTLS: true,
-      logger: true, // Step 4: Add logging
-      debug: true, // Step 4: Add debug info
+      logger: false,
+      debug: false,
     });
 
     // Verify connection configuration

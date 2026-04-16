@@ -4,15 +4,18 @@ import catchAsync from "../../../shared/catchAsync";
 import { publicationsService } from "./publications.service";
 import { Request, Response } from "express";
 import { googleCloudStorage } from "../../../helpers/googleCloudStorage";
+import { parseToUTC } from "../../../helpers/dateHelpers";
 
 const createPublications = catchAsync(async (req, res) => {
   const publicationData = req.body;
 
-  // Convert status string to boolean if it exists
-  if (publicationData.status !== undefined) {
-    if (typeof publicationData.status === "string") {
-      publicationData.status = publicationData.status === "true" ? true : false;
-    }
+  // Parse and set publicationDate with UTC conversion
+  if (!publicationData.publicationDate) {
+    publicationData.publicationDate = new Date();
+  } else if (typeof publicationData.publicationDate === "string") {
+    publicationData.publicationDate = parseToUTC(
+      publicationData.publicationDate,
+    );
   }
 
   // Process files if they exist
@@ -22,12 +25,12 @@ const createPublications = catchAsync(async (req, res) => {
       // Handle cover image - upload to GCS
       if (files["coverImage"] && files["coverImage"][0]) {
         console.log(
-          `Uploading cover image: ${files["coverImage"][0].originalname}`
+          `Uploading cover image: ${files["coverImage"][0].originalname}`,
         );
         const coverImageResult =
           await googleCloudStorage.uploadPublicationImage(
             files["coverImage"][0],
-            "covers"
+            "covers",
           );
         publicationData.coverImage = coverImageResult.signedUrl;
       }
@@ -37,7 +40,7 @@ const createPublications = catchAsync(async (req, res) => {
         console.log(`Uploading document: ${files["file"][0].originalname}`);
         const fileResult = await googleCloudStorage.uploadDocument(
           files["file"][0],
-          "files"
+          "files",
         );
         publicationData.file = fileResult.signedUrl;
         publicationData.fileName = fileResult.fileName;
@@ -55,7 +58,7 @@ const createPublications = catchAsync(async (req, res) => {
     } catch (error: any) {
       console.error("Error uploading files:", error);
       throw new Error(
-        error.message || "Error uploading files. Please try again."
+        error.message || "Error uploading files. Please try again.",
       );
     }
   }
@@ -85,7 +88,7 @@ const getPublicationsList = catchAsync(async (req: Request, res: Response) => {
 
   const result = await publicationsService.getListFromDb(
     filters,
-    paginationOptions
+    paginationOptions,
   );
 
   sendResponse(res, {
@@ -115,7 +118,7 @@ const getWebsitePublicationsList = catchAsync(
 
     const result = await publicationsService.getWebsitePublicationsList(
       filters,
-      paginationOptions
+      paginationOptions,
     );
 
     sendResponse(res, {
@@ -125,7 +128,7 @@ const getWebsitePublicationsList = catchAsync(
       meta: result.meta,
       data: result.data,
     });
-  }
+  },
 );
 
 const getPublicationsById = catchAsync(async (req, res) => {
@@ -141,10 +144,12 @@ const getPublicationsById = catchAsync(async (req, res) => {
 const updatePublications = catchAsync(async (req, res) => {
   const updateData = req.body;
 
-  if (updateData.status !== undefined) {
-    if (typeof updateData.status === "string") {
-      updateData.status = updateData.status === "true" ? true : false;
-    }
+  // Parse publicationDate if provided
+  if (
+    updateData.publicationDate &&
+    typeof updateData.publicationDate === "string"
+  ) {
+    updateData.publicationDate = parseToUTC(updateData.publicationDate);
   }
 
   const files = req.files as any;
@@ -153,12 +158,12 @@ const updatePublications = catchAsync(async (req, res) => {
       // Handle cover image - upload to GCS
       if (files["coverImage"] && files["coverImage"][0]) {
         console.log(
-          `Uploading new cover image: ${files["coverImage"][0].originalname}`
+          `Uploading new cover image: ${files["coverImage"][0].originalname}`,
         );
         const coverImageResult =
           await googleCloudStorage.uploadPublicationImage(
             files["coverImage"][0],
-            "covers"
+            "covers",
           );
         updateData.coverImage = coverImageResult.signedUrl;
       }
@@ -168,7 +173,7 @@ const updatePublications = catchAsync(async (req, res) => {
         console.log(`Uploading new document: ${files["file"][0].originalname}`);
         const fileResult = await googleCloudStorage.uploadDocument(
           files["file"][0],
-          "files"
+          "files",
         );
         updateData.file = fileResult.signedUrl;
         updateData.fileName = fileResult.fileName;
@@ -185,14 +190,14 @@ const updatePublications = catchAsync(async (req, res) => {
     } catch (error: any) {
       console.error("Error uploading files:", error);
       throw new Error(
-        error.message || "Error uploading files. Please try again."
+        error.message || "Error uploading files. Please try again.",
       );
     }
   }
 
   const result = await publicationsService.updateIntoDb(
     req.params.id,
-    updateData
+    updateData,
   );
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -233,7 +238,7 @@ const getPinnedPublications = catchAsync(
       message: "Pinned publications retrieved successfully",
       data: result,
     });
-  }
+  },
 );
 
 const getAdminPinnedPublications = catchAsync(
@@ -245,7 +250,7 @@ const getAdminPinnedPublications = catchAsync(
       message: "Admin pinned publications retrieved successfully",
       data: result,
     });
-  }
+  },
 );
 
 export const publicationsController = {
