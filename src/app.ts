@@ -10,20 +10,12 @@ import { LANDING_PAGE_TEMPLATE } from "./utils/Template";
 const app: Application = express();
 export const corsOptions = {
   origin: [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://10.10.20.6:5173",
-    "http://192.168.0.101:5173", 
-    "http://10.10.20.6:3000",
-    "https://ihamrick-frontend.vercel.app",
-    "https://www.ihamrick-frontend.vercel.app",
-    "http://192.168.1.128:5173",
     "https://pg-65.com",
     "https://www.pg-65.com",
     "https://dashboard.pg-65.com",
     "https://www.dashboard.pg-65.com",
     "https://api.pg-65.com",
-    "https://www.api.pg-65.com"
+    "https://www.api.pg-65.com",
   ],
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: [
@@ -33,7 +25,7 @@ export const corsOptions = {
     "X-Requested-With",
     "Cache-Control",
     "Origin",
-    "X-Auth-Token"
+    "X-Auth-Token",
   ],
   exposedHeaders: ["Content-Range", "X-Content-Range"],
   credentials: true,
@@ -48,8 +40,8 @@ app.options("*", cors(corsOptions));
 app.use(cookieParser());
 
 // Increase body size limits for large video uploads (6GB)
-app.use(express.json({ limit: '6gb' }));
-app.use(express.urlencoded({ extended: true, limit: '6gb' }));
+app.use(express.json({ limit: "6gb" }));
+app.use(express.urlencoded({ extended: true, limit: "6gb" }));
 
 app.use(express.static("public"));
 app.use("/uploads", express.static("uploads")); // Serve uploaded files
