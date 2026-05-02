@@ -44,7 +44,7 @@ const createIntoDb = async (data: Partial<IVideo>) => {
 const getListFromDb = async (
   filters: IVideoFilter,
   paginationOptions: IPaginationOptions,
-  publicOnly: boolean = false
+  publicOnly: boolean = false,
 ) => {
   const { searchTerm, status, uploadDateFrom, uploadDateTo } = filters;
 
@@ -127,11 +127,11 @@ const getListFromDb = async (
       } catch (error) {
         console.error(
           `Error refreshing signed URL for video ${video._id}:`,
-          error
+          error,
         );
         return video.toObject(); // Return video with old URL if refresh fails
       }
-    })
+    }),
   );
 
   return {
@@ -148,7 +148,7 @@ const getListFromDb = async (
 const getByIdFromDb = async (
   id: string,
   incrementView: boolean = false,
-  publicOnly: boolean = false
+  publicOnly: boolean = false,
 ) => {
   const result = await Video.findById(id);
 
@@ -177,7 +177,7 @@ const getByIdFromDb = async (
   } catch (error) {
     console.error(
       `Error refreshing signed URL for video ${result._id}:`,
-      error
+      error,
     );
   }
 
@@ -245,7 +245,7 @@ const updateIntoDb = async (id: string, data: IVideoUpdateData) => {
   const result = await Video.findByIdAndUpdate(
     id,
     { ...updateData, updatedAt: nowUTC() },
-    { new: true, runValidators: true }
+    { new: true, runValidators: true },
   );
 
   if (!result) {
@@ -291,7 +291,7 @@ const deleteItemFromDb = async (id: string) => {
     const result = await Video.findByIdAndUpdate(
       id,
       { isDeleted: true },
-      { new: true, session }
+      { new: true, session },
     );
 
     await session.commitTransaction();
@@ -335,6 +335,7 @@ const getPinnedVideosFromDb = async () => {
   const result = await Video.find({
     isPinned: true,
     status: VideoStatus.PUBLISHED,
+    isDeleted: false,
   }).sort({ createdAt: -1 });
 
   return result;
@@ -343,6 +344,7 @@ const getPinnedVideosFromDb = async () => {
 const getAdminPinnedVideosFromDb = async () => {
   const result = await Video.find({
     isPinned: true,
+    isDeleted: false,
   }).sort({ createdAt: -1 });
 
   return result;
